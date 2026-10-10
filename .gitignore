@@ -1,0 +1,12 @@
+# Dependencies and local environment
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Generated or machine-local files
+/package-lock.json
+/.dist-git-backup/
+*.log
+.DS_Store
+Thumbs.db
