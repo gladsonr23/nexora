@@ -1,0 +1,23 @@
+{
+  "name": "nexora-modules",
+  "version": "1.0.0",
+  "description": "Vault, SyllabusToSchedule and NoteToQuiz modules for Nexora",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.22.0",
+    "@google/genai": "^2.25.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.1"
+  }
+}

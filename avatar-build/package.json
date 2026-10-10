@@ -1,0 +1,19 @@
+{
+  "name": "nexora-avatar-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/avatar-renderer.jsx src/glide-select.jsx src/spring-check.jsx --bundle --minify --format=iife --legal-comments=external --outdir=../dist --entry-names=[name]"
+  },
+  "dependencies": {
+    "@gschoppe/avataaars": "2.4.3",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
+    "motion": "^14.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

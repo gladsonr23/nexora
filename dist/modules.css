@@ -1,0 +1,129 @@
+/* modules.css — additive styles for Vault, SyllabusToSchedule, NoteToQuiz.
+   Built entirely on the existing --nx-* custom properties from styles.css,
+   so light/dark mode and the rest of the theme keep working automatically.
+   Class prefixes: nxm- (shared), nxv- (Vault), nxs- (Schedule), nxq- (Quiz). */
+
+/* ---------- shared: loading / error / empty states ---------- */
+.nxm-loading, .nxm-error, .nxm-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--nx-muted);
+}
+.nxm-empty h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 18px; color: var(--nx-text); }
+.nxm-empty p, .nxm-error p { margin: 0; font-size: 13px; max-width: 46ch; }
+.nxm-spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--nx-line); border-top-color: var(--nx-accent);
+  animation: nxm-spin 0.8s linear infinite;
+}
+@keyframes nxm-spin { to { transform: rotate(360deg); } }
+.nxm-retry { margin-top: 4px; }
+.nxm-field { display: grid; gap: 6px; font-size: 12px; font-weight: 650; color: var(--nx-text); }
+.nxm-field input, .nxm-field select, .nxm-field textarea {
+  min-height: 40px; padding: 8px 12px; border: 1px solid var(--nx-line); border-radius: 8px;
+  background: var(--nx-bg); color: var(--nx-text); font: inherit;
+}
+.nxm-field textarea { min-height: 80px; resize: vertical; }
+.nxm-field input:focus, .nxm-field select:focus, .nxm-field textarea:focus {
+  outline: none; border-color: var(--nx-ring); box-shadow: 0 0 0 3px var(--nx-accent-soft);
+}
+.nxm-inline-error { color: var(--nx-error); font-size: 12px; margin: 6px 0 0; }
+.nxm-badge {
+  display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700;
+  background: var(--nx-accent-soft); color: var(--nx-status-text);
+}
+.nxm-badge-warn { background: rgba(183,53,22,.12); color: var(--nx-error); }
+.nxm-badge-muted { background: var(--nx-surface-soft); color: var(--nx-subtle); }
+
+/* ---------- Vault ---------- */
+.nxv-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.nxv-search { flex: 1; min-width: 220px; }
+.nxv-search input { width: 100%; min-height: 42px; padding: 9px 14px; border: 1px solid var(--nx-line); border-radius: 9px; background: var(--nx-bg); color: var(--nx-text); font: inherit; }
+.nxv-filters { display: flex; align-items: center; min-height: 44px; }
+.nxv-upload-panel { display: grid; gap: 12px; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; padding: 16px; margin-bottom: 16px; border: 1px dashed var(--nx-accent); border-radius: var(--nx-radius); background: var(--nx-accent-soft); }
+.nxv-upload-panel .nxm-field { grid-column: span 1; }
+.nxv-upload-panel .nxm-field input,
+.nxv-upload-panel .nxm-field select { min-height: 42px; }
+.nxv-upload-category-field > span { display: block; min-width: 0; }
+.nxv-upload-category-field .glide-select { display: block; width: 100%; }
+.nxv-upload-category-field .glide-select__trigger { width: 100%; height: 42px; justify-content: space-between; border-radius: 10px; font: inherit; }
+.nxv-upload-actions { display: flex; gap: 10px; align-items: stretch; }
+.nxv-upload-actions button { min-height: 42px; }
+#nxv-upload-panel:not(:empty) { margin-top: 16px; }
+.nxv-list { border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); overflow: hidden; }
+.nxv-row { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--nx-line); }
+.nxv-row:last-child { border-bottom: 0; }
+.nxv-row-icon { color: var(--nx-accent); }
+.nxv-row-main strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.nxv-row-main small { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; color: var(--nx-muted); font-size: 11.5px; }
+.nxv-row-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.nxv-row-actions button { padding: 6px 10px; border: 1px solid var(--nx-line); border-radius: 7px; background: var(--nx-surface); color: var(--nx-text); font-size: 11.5px; font-weight: 650; }
+.nxv-row-actions button:hover { background: var(--nx-surface-soft); }
+.nxv-row-actions .nxv-danger { color: var(--nx-error); border-color: var(--nx-error); }
+@media (max-width: 640px) {
+  .nxv-row { grid-template-columns: 1fr; }
+  .nxv-row-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 860px) {
+  .nxv-upload-panel { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .nxv-upload-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+@media (max-width: 540px) {
+  .nxv-upload-panel { grid-template-columns: minmax(0,1fr); }
+  .nxv-upload-actions { grid-column: auto; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .nxv-upload-actions .nx-primary-button { width: auto; padding: 9px 12px; }
+  .nxv-upload-actions .nx-primary-button span { display: inline; }
+}
+
+/* ---------- SyllabusToSchedule ---------- */
+.nxs-config { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); padding: 18px; margin-bottom: 18px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); }
+.nxs-weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
+.nxs-weekdays label { display: flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid var(--nx-line); border-radius: 7px; font-size: 11px; font-weight: 650; }
+.nxs-generate-row { grid-column: 1/-1; display: flex; justify-content: flex-end; }
+.nxs-overview { display: flex; flex-wrap: wrap; gap: 20px; padding: 16px 18px; margin-bottom: 14px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); }
+.nxs-overview div { display: grid; gap: 2px; }
+.nxs-overview span { font-size: 11px; color: var(--nx-muted); text-transform: uppercase; letter-spacing: .06em; }
+.nxs-overview strong { font-size: 16px; }
+.nxs-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.nxs-tabs button { padding: 7px 14px; border: 1px solid var(--nx-line); border-radius: 20px; background: var(--nx-surface); font-size: 12px; font-weight: 650; color: var(--nx-muted); }
+.nxs-tabs button.nxs-tab-active { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-sidebar-selected-text); }
+.nxs-tasklist { display: grid; gap: 10px; }
+.nxs-task { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 12px 16px; border: 1px solid var(--nx-line); border-radius: 10px; background: var(--nx-surface); }
+.nxs-task.nxs-task-completed strong { text-decoration: line-through; color: var(--nx-subtle); }
+.nxs-task label { position: relative; display: inline-flex; }
+.nxs-task input { width: 18px; height: 18px; accent-color: var(--nx-accent); }
+.nxs-task strong { display: block; font-size: 13px; }
+.nxs-task small { display: block; margin-top: 2px; color: var(--nx-muted); font-size: 11.5px; }
+.nxs-priority { padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+.nxs-priority-high { background: rgba(183,53,22,.12); color: var(--nx-error); }
+.nxs-priority-medium { background: var(--nx-accent-soft); color: var(--nx-status-text); }
+.nxs-priority-low { background: var(--nx-surface-soft); color: var(--nx-subtle); }
+.nxs-date { font-size: 11px; color: var(--nx-subtle); white-space: nowrap; }
+
+/* ---------- NoteToQuiz ---------- */
+.nxq-config { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); padding: 18px; margin-bottom: 18px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); }
+.nxq-generate-row { grid-column: 1/-1; display: flex; justify-content: flex-end; }
+.nxq-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 12px; color: var(--nx-muted); }
+.nxq-card { padding: clamp(20px,4vw,32px); border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); }
+.nxq-question { margin: 0 0 18px; font-family: Georgia, "Times New Roman", serif; font-size: 20px; font-weight: 600; }
+.nxq-options { display: grid; gap: 10px; }
+.nxq-option { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--nx-line); border-radius: 9px; background: var(--nx-bg); text-align: left; font-size: 13px; }
+.nxq-option:hover { background: var(--nx-surface-soft); }
+.nxq-option.nxq-option-selected { border-color: var(--nx-accent); background: var(--nx-accent-soft); }
+.nxq-option.nxq-option-correct { border-color: #1c8a4c; background: rgba(28,138,76,.1); }
+.nxq-option.nxq-option-incorrect { border-color: var(--nx-error); background: rgba(183,53,22,.08); }
+.nxq-nav { display: flex; justify-content: space-between; margin-top: 22px; }
+.nxq-results-score { display: flex; gap: 22px; align-items: baseline; margin-bottom: 18px; }
+.nxq-results-score strong { font-size: 34px; font-family: Georgia, serif; }
+.nxq-results-score span { color: var(--nx-muted); font-size: 12px; }
+.nxq-review-item { padding: 14px 0; border-top: 1px solid var(--nx-line); }
+.nxq-review-item:first-child { border-top: 0; }
+.nxq-review-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-right: 8px; }
+.nxq-review-tag-correct { background: rgba(28,138,76,.12); color: #1c8a4c; }
+.nxq-review-tag-incorrect { background: rgba(183,53,22,.12); color: var(--nx-error); }
+.nxq-actions-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
