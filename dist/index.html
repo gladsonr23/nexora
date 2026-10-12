@@ -26,7 +26,13 @@
   <link rel="stylesheet" href="./modules.css">
   <link rel="stylesheet" href="./module3.css?v=9">
   <link rel="stylesheet" href="./grainient.css?v=1">
-  <script>window.NEXORA_API_BASE = window.NEXORA_API_BASE || 'http://localhost:4000';</script>
+  <script>
+    window.NEXORA_API_BASE = window.NEXORA_API_BASE || (
+      location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        ? 'http://localhost:4000'
+        : 'https://nexora-rc69.vercel.app'
+    );
+  </script>
   <!-- Clerk PUBLISHABLE key only (pk_test_… / pk_live_…). Never put a Clerk secret key or any Supabase key in this folder. -->
   <script>window.NEXORA_CLERK_PUBLISHABLE_KEY = 'pk_test_a2Vlbi1zYXdmbHktMzE1My5jbGVyay5hY2NvdW50cy5kZXYk';</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js" defer></script>
