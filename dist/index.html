@@ -31,7 +31,9 @@
     window.NEXORA_API_BASE = window.NEXORA_API_BASE || (
       location.hostname === 'localhost' || location.hostname === '127.0.0.1'
         ? 'http://localhost:4000'
-        : 'https://nexora-rc69.vercel.app'
+        : location.hostname.includes('-git-codex-integrate-')
+          ? 'https://nexora-rc69-git-codex-integrate-e95399-rjgladson-5881s-projects.vercel.app'
+          : 'https://nexora-rc69.vercel.app'
     );
   </script>
   <!-- Clerk PUBLISHABLE key only (pk_test_… / pk_live_…). Never put a Clerk secret key or any Supabase key in this folder. -->
