@@ -1,15 +1,8 @@
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createCanvas } from '@napi-rs/canvas';
-import { createWorker } from 'tesseract.js';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-
-const require = createRequire(import.meta.url);
+const path = require('node:path');
 const { langPath } = require('@tesseract.js-data/eng');
 
 function pdfJsResourceOptions() {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const projectRoot = path.resolve(__dirname, '..');
   const directory = relative => path.resolve(projectRoot, relative).replaceAll('\\', '/') + '/';
   return {wasmUrl:directory('node_modules/pdfjs-dist/wasm'),standardFontDataUrl:directory('node_modules/pdfjs-dist/standard_fonts')};
 }
@@ -18,7 +11,10 @@ function pdfJsResourceOptions() {
  * Extract text locally. Page images are rasterized in the API process and passed
  * only to the bundled Tesseract worker; no PDF or page image is sent to a provider.
  */
-export async function extractPdfWithOcr(bytes) {
+async function extractPdfWithOcr(bytes) {
+  const [{createCanvas},{createWorker},{getDocument}] = await Promise.all([
+    import('@napi-rs/canvas'), import('tesseract.js'), import('pdfjs-dist/legacy/build/pdf.mjs')
+  ]);
   const task = getDocument({data:new Uint8Array(bytes),useSystemFonts:true,...pdfJsResourceOptions()});
   const document = await task.promise;
   const pages = [];
@@ -46,3 +42,5 @@ export async function extractPdfWithOcr(bytes) {
   }
   return pages;
 }
+
+module.exports = { extractPdfWithOcr };
