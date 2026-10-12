@@ -1,14 +1,15 @@
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
 
 const STOP_WORDS = new Set('a an and are as at be between by can compare define describe difference differentiate discuss do does explain for from give how in into is it its list mention of on or outline the their to what which with write you your short note notes advantages disadvantages following'.split(' '));
 
-export function inferExamYear(filename, supplied = '') {
+function inferExamYear(filename, supplied = '') {
   const fromFilename = String(filename || '').match(/(?:^|\D)(20\d{2})(?=\D|$)/)?.[1];
   if (fromFilename) return fromFilename;
   return String(supplied || '').match(/(?:^|\D)(20\d{2})(?=\D|$)/)?.[1] || '';
 }
 
-export async function extractPdfPages(bytes) {
+async function extractPdfPages(bytes) {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const task = getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
   const document = await task.promise;
   const pages = [];
@@ -61,7 +62,7 @@ function extractMarks(text) {
   return { text: text.trim(), marks: null };
 }
 
-export function parseQuestionPaper(pages, metadata = {}) {
+function parseQuestionPaper(pages, metadata = {}) {
   const questions = [];
   let current = null;
   const flush = () => {
@@ -114,7 +115,7 @@ function topicName(text) {
   return words.slice(0, 3).map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
 }
 
-export function analyzeQuestionPapers(papers) {
+function analyzeQuestionPapers(papers) {
   const groups = [];
   const cleanPapers = papers.filter(paper => paper && Array.isArray(paper.questions));
   for (const [paperIndex, paper] of cleanPapers.entries()) {
@@ -142,3 +143,5 @@ export function analyzeQuestionPapers(papers) {
     repeatedGroups: result.filter(group => group.paperCount > 1).length,
     marksKnown: result.reduce((sum, group) => sum + group.marksKnown, 0) };
 }
+
+module.exports = { inferExamYear, extractPdfPages, parseQuestionPaper, analyzeQuestionPapers };
