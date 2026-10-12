@@ -1213,9 +1213,9 @@ function loadCompanionAvatar() {
       backdropColor: companionOptions.backdropColor.includes(saved.backdropColor) ? saved.backdropColor : 'PastelBlue',
       clotheType: companionOptions.clotheType.includes(saved.clotheType) ? saved.clotheType : (oldClothes[saved.clothes] || 'Hoodie'),
       clotheColor: companionOptions.clotheColor.includes(saved.clotheColor) ? saved.clotheColor : (oldOutfit[saved.outfit] || 'PastelBlue'),
-      nickname: typeof saved.nickname === 'string' && saved.nickname.trim()
+      nickname: typeof saved.nickname === 'string' && saved.nickname.trim() && saved.nickname.trim().toLowerCase() !== 'kattu'
         ? saved.nickname.trim().slice(0, 20)
-        : 'Kattu',
+        : 'Study Companion',
       seed: String(saved.seed || randomCompanionSeed())
     };
   } catch (_) {
