@@ -1201,6 +1201,12 @@ function loadCompanionAvatar() {
       ? { short: 'ShortHairShortFlat', curly: 'ShortHairShortCurly', long: 'LongHairNotTooLong', random: 'ShortHairShortRound' }
       : { short: 'LongHairBob', curly: 'LongHairCurly', long: 'LongHairMiaWallace', random: 'LongHairBigHair' };
     const topTypes = saved.gender === 'male' ? companionOptions.topTypeMale : companionOptions.topTypeFemale;
+    const nickname = typeof saved.nickname === 'string' && saved.nickname.trim() && saved.nickname.trim().toLowerCase() !== 'kattu'
+      ? saved.nickname.trim().slice(0, 20)
+      : 'Study Companion';
+    if (saved.nickname !== nickname) {
+      localStorage.setItem(companionStorageKey(), JSON.stringify({ ...saved, nickname }));
+    }
     return {
       gender: saved.gender,
       skinColor: companionOptions.skinColor.includes(saved.skinColor) ? saved.skinColor : (oldSkin[saved.skin] || 'Light'),
@@ -1213,9 +1219,7 @@ function loadCompanionAvatar() {
       backdropColor: companionOptions.backdropColor.includes(saved.backdropColor) ? saved.backdropColor : 'PastelBlue',
       clotheType: companionOptions.clotheType.includes(saved.clotheType) ? saved.clotheType : (oldClothes[saved.clothes] || 'Hoodie'),
       clotheColor: companionOptions.clotheColor.includes(saved.clotheColor) ? saved.clotheColor : (oldOutfit[saved.outfit] || 'PastelBlue'),
-      nickname: typeof saved.nickname === 'string' && saved.nickname.trim() && saved.nickname.trim().toLowerCase() !== 'kattu'
-        ? saved.nickname.trim().slice(0, 20)
-        : 'Study Companion',
+      nickname,
       seed: String(saved.seed || randomCompanionSeed())
     };
   } catch (_) {
