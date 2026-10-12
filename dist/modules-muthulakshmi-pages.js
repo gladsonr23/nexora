@@ -13,7 +13,7 @@
   const form = $('#nx-caption-form');
   const noteHost = $('#nx-study-note');
   let currentNote = null;
-  const apiBase = (window.NEXORA_API_BASE || 'http://localhost:4000').replace(/\/$/, '');
+  const apiBase = (window.NEXORA_API_BASE ?? 'http://localhost:4000').replace(/\/$/, '');
   function text(parent, tag, className, value) {
     const el = document.createElement(tag);
     if (className) el.className = className;
