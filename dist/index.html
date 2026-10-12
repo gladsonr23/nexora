@@ -18,6 +18,7 @@
     document.querySelector('meta[name="theme-color"]').content = initialTheme === 'dark' ? 'oklch(0.2102 0.0066 78.1754)' : 'oklch(0.9610 0.0124 91.5185)';
   </script>
   <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./muthulakshmi-study.css?v=1">
 <link rel="stylesheet" href="./avatar-renderer.css">
 <link rel="stylesheet" href="./glide-select.css">
 <link rel="stylesheet" href="./spring-check.css">
@@ -34,10 +35,10 @@
     );
   </script>
   <!-- Clerk PUBLISHABLE key only (pk_test_… / pk_live_…). Never put a Clerk secret key or any Supabase key in this folder. -->
-  <script>window.NEXORA_CLERK_PUBLISHABLE_KEY = 'pk_test_a2Vlbi1zYXdmbHktMzE1My5jbGVyay5hY2NvdW50cy5kZXYk';</script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js" defer></script>
+<script src="./study-pdf.js?v=1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-<script src="./clerk-auth.js?v=2" defer></script>
 <script src="./modules-shared.js" defer></script>
 <script src="./nexora-adapters.js" defer></script>
 <script src="./ocr.js" defer></script>
@@ -45,7 +46,8 @@
 <script src="./spring-check.js?v=1" defer></script>
 <script src="./lattice-loader.js" defer></script>
 <script src="./thought-line.js" defer></script>
-<script src="./modules-vault.js" defer></script>
+<script src="./vault-files.js?v=1" defer></script>
+<script src="./modules-vault.js?v=24" defer></script>
 <script src="./modules-schedule.js" defer></script>
 <script src="./modules-quiz.js" defer></script>
 <script src="./avatar-renderer.js" defer></script>
@@ -55,6 +57,8 @@
 <script src="./grainient.js?v=1" defer></script>
 <script src="./analytics.js?v=5" defer></script>
 <script src="app.js?v=23" defer></script>
+<script src="./modules-muthulakshmi-pages.js?v=1" defer></script>
+<script src="./pattern.js?v=1" defer></script>
 </head>
 <body>
   <noscript>Nexora needs JavaScript to show the dashboard.</noscript>
