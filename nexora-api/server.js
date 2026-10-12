@@ -3,14 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const materialsRouter = require('./routes/materials');
+const studyComponentsRouter = require('./routes/study-components');
 const scheduleRouter = require('./routes/schedule');
 const tasksRouter = require('./routes/tasks');
 const quizzesRouter = require('./routes/quizzes');
 const assistantRouter = require('./routes/assistant');
 const flashloopRouter = require('./routes/flashloop');
 const { optionalAuth } = require('./middleware/auth');
-const { isConfigured: supabaseConfigured } = require('./services/supabase');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -26,7 +25,8 @@ app.use(express.json({ limit: '16mb' }));
 // app.use(express.static(path.join(__dirname, 'public')));
 
 // API routes — one mount point per module, all sharing the same SQLite DB.
-app.use('/api/materials', materialsRouter);   // Vault — Clerk-authenticated, Supabase-backed (auth enforced inside the router)
+// Shared release: study files live in each browser until account storage is re-enabled.
+app.use('/api', studyComponentsRouter); // YouTube notes and historical exam-pattern analysis
 // Schedule / Quiz are still SQLite-backed and not login-gated yet. optionalAuth
 // only *attaches* req.auth.userId when a valid Clerk token is sent (never rejects),
 // so these routes can look up the signed-in user's Vault materials via
@@ -48,12 +48,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Nexora modules API running at http://localhost:${PORT}`);
   console.log(`  Point the dashboard's window.NEXORA_API_BASE at this URL.`);
-  if (!process.env.CLERK_SECRET_KEY) {
-    console.warn('  ⚠ CLERK_SECRET_KEY not set — every Vault request will return 401 until it is.');
-  }
-  if (!supabaseConfigured) {
-    console.warn('  ⚠ SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — Vault requests will return 503 until they are.');
-  }
   if (!process.env.GEMINI_API_KEY) {
     console.warn('  ⚠ GEMINI_API_KEY not set — AI generation endpoints will return 503 until it is.');
   }
