@@ -1,4 +1,4 @@
-import { validateNotes } from './notes.js';
+const { validateNotes } = require('./notes.js');
 
 const geminiModels = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
 const groqModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
@@ -112,7 +112,7 @@ async function groqNotes(prompt, apiKey, fetchImpl) {
   throw new ProviderError('Groq is temporarily unavailable.');
 }
 
-export async function generateStudyNotes(prompt, {geminiKey, groqKey, fetchImpl = fetch}) {
+async function generateStudyNotes(prompt, {geminiKey, groqKey, fetchImpl = fetch}) {
   const validGeminiKey = geminiKey && geminiKey !== 'PASTE_YOUR_KEY_HERE';
   const validGroqKey = groqKey && groqKey !== 'PASTE_YOUR_KEY_HERE' && groqKey !== 'your_groq_key';
   if (!validGeminiKey) throw new ProviderError('Add your Gemini API key to server/.env, then restart Nexora.');
@@ -120,3 +120,5 @@ export async function generateStudyNotes(prompt, {geminiKey, groqKey, fetchImpl 
   catch (error) { if (!error.retryable || !validGroqKey) throw error; }
   return groqNotes(prompt, groqKey, fetchImpl);
 }
+
+module.exports = { generateStudyNotes };
