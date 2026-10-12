@@ -7,18 +7,18 @@ function textHasLatex(text) {
   return LATEX_PATTERN.test(withoutCurrency);
 }
 
-export function hasLatex(value) {
+function hasLatex(value) {
   if (typeof value === 'string') return textHasLatex(value);
   if (Array.isArray(value)) return value.some(hasLatex);
   if (value && typeof value === 'object') return Object.values(value).some(hasLatex);
   return false;
 }
 
-export function cleanCaptions(raw) {
+function cleanCaptions(raw) {
   return raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').trim();
 }
 
-export function validateNotes(notes) {
+function validateNotes(notes) {
   if (!notes || typeof notes !== 'object' || Array.isArray(notes)) throw new Error('The note response was not valid.');
   if (typeof notes.title !== 'string' || !notes.title.trim()) throw new Error('The notes need a title.');
   if (typeof notes.overview !== 'string' || !notes.overview.trim()) throw new Error('The notes need an overview.');
@@ -37,3 +37,5 @@ export function validateNotes(notes) {
   if (hasLatex(notes)) throw new Error('The generated notes contained LaTeX notation. Please generate them again.');
   return notes;
 }
+
+module.exports = { hasLatex, cleanCaptions, validateNotes };
