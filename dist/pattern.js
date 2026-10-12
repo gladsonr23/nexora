@@ -322,7 +322,7 @@
       }
       for (const [index,file] of files.entries()) {
         addButton.textContent=`Reading ${index+1} of ${files.length}…`;
-        progress.textContent=`Processing ${file.name} (${index+1}/${files.length}). Scanned papers can take a minute while OCR and both AI models cross-check them.`;
+        progress.textContent=`Processing ${file.name} (${index+1}/${files.length}). Scanned pages are OCR-processed by Nexora's API server using local Tesseract; paper content is not sent to AI providers.`;
         const inferredYear=file.name.match(/\b(20\d{2})\b/)?.[1] || '';
         const params = new URLSearchParams({name:file.name,year:yearInput.value.trim() || inferredYear});
         try {
