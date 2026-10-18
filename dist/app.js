@@ -729,7 +729,7 @@ document.body.innerHTML = `
 
   <button class="nx-companion-launcher is-unpersonalized" id="nx-companion-launcher" type="button" aria-label="Study Companion. Drag to move; click to open." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
     <span class="nx-companion-launcher-face" id="nx-companion-launcher-face" hidden></span>
-    <span class="nx-companion-launcher-label">Study Companion</span>
+    <span class="nx-companion-launcher-label"><span>Study</span><span>Companion</span></span>
   </button>
 
   <dialog class="nx-companion-dialog" id="nx-companion-dialog" aria-labelledby="nx-companion-title" aria-describedby="nx-companion-description">
@@ -1259,8 +1259,8 @@ function renderCompanionLauncher() {
   if (existingAvatar && window.NexoraAvatar) window.NexoraAvatar.unmount(existingAvatar);
   companionLauncherFace.replaceChildren();
   const nickname = savedCompanionAvatar?.nickname?.trim() || 'Study Companion';
-  companionLauncherLabel.textContent = nickname;
   if (savedCompanionAvatar) {
+    companionLauncherLabel.textContent = nickname;
     companionLauncher.classList.remove('is-unpersonalized');
     companionLauncherFace.hidden = false;
     const avatar = document.createElement('div');
@@ -1270,6 +1270,11 @@ function renderCompanionLauncher() {
     renderCompanionImage(savedCompanionAvatar, avatar);
     companionLauncher.setAttribute('aria-label', `Edit ${nickname}, your study companion`);
   } else {
+    companionLauncherLabel.replaceChildren(...['Study', 'Companion'].map((word) => {
+      const line = document.createElement('span');
+      line.textContent = word;
+      return line;
+    }));
     companionLauncher.classList.add('is-unpersonalized');
     companionLauncherFace.hidden = true;
     companionLauncher.setAttribute('aria-label', 'Study Companion. Drag to move; click to open.');

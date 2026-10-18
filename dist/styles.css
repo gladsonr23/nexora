@@ -636,6 +636,11 @@ body,
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
+  white-space: normal;
+}
+
+.nx-companion-launcher.is-unpersonalized .nx-companion-launcher-label span {
+  display: block;
 }
 
 .nx-companion-dialog {
