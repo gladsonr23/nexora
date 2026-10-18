@@ -640,16 +640,10 @@ body,
 }
 
 .nx-companion-launcher.is-unpersonalized .nx-companion-launcher-label {
-  max-width: none;
-  font-size: 12px;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: normal;
+  display: none;
 }
 
-.nx-companion-launcher.is-unpersonalized .nx-companion-launcher-label span {
-  display: block;
-}
+.nx-companion-launcher.is-unpersonalized .nx-companion-launcher-face.is-placeholder { border-radius: 50%; }
 
 .nx-companion-dialog {
   position: fixed;
@@ -723,8 +717,8 @@ body,
   font-size: 11px;
 }
 
-.nx-chat-tools a { padding: 6px 0; color: var(--nx-accent); font-weight: 800; text-decoration: none; }
-.nx-chat-tools a:hover { text-decoration: underline; }
+.nx-chat-tools button { padding: 6px 0; border: 0; background: transparent; color: var(--nx-accent); font: inherit; font-weight: 800; cursor: pointer; }
+.nx-chat-tools button:hover { text-decoration: underline; }
 .nx-chat-messages { display: flex; min-height: 0; padding: 24px 25px; overflow-y: auto; flex: 1; flex-direction: column; align-items: flex-start; gap: 12px; }
 
 .nx-chat-welcome,

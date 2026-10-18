@@ -834,7 +834,7 @@ document.body.innerHTML = `
       <div class="nx-chat-identity"><p class="nx-kicker">Study companion</p><h2 id="nx-chat-title">Study Companion</h2><small id="nx-chat-source-status">No session sources</small></div>
       <button class="nx-companion-close" id="nx-chat-close" type="button" aria-label="Close study companion">×</button>
     </header>
-    <div class="nx-chat-tools"><span>Answers grounded in your Vault</span><a href="#settings">Manage in Settings</a></div>
+    <div class="nx-chat-tools"><span>Answers grounded in your Vault</span><button type="button" id="nx-chat-customize" hidden>Customize avatar</button></div>
     <div class="nx-chat-messages" id="nx-chat-messages" aria-live="polite"><p class="nx-chat-welcome">Hi, I’m your study companion. Ask me about the PDFs and notes in your Vault.</p></div>
     <div class="nx-chat-suggestions" id="nx-chat-suggestions"><button type="button" data-chat-prompt="Summarize the key ideas in my study materials">Summarize my materials</button><button type="button" data-chat-route="#quiz">Create a quiz</button><button type="button" data-chat-prompt="Analyze recurring exam patterns in my study materials">Analyze exam patterns</button></div>
     <form class="nx-chat-form" id="nx-chat-form"><label class="nx-sr-only" for="nx-chat-input">Ask about your study materials</label><textarea id="nx-chat-input" rows="2" maxlength="3000" placeholder="Ask about your study materials…" required></textarea><button class="nx-primary-button" type="submit">Send</button></form>
@@ -1263,6 +1263,7 @@ function renderCompanionLauncher() {
     companionLauncherLabel.textContent = nickname;
     companionLauncher.classList.remove('is-unpersonalized');
     companionLauncherFace.hidden = false;
+    companionLauncherFace.classList.remove('is-placeholder');
     const avatar = document.createElement('div');
     avatar.className = 'nx-companion-avatar-rendered';
     avatar.setAttribute('aria-hidden', 'true');
@@ -1270,15 +1271,14 @@ function renderCompanionLauncher() {
     renderCompanionImage(savedCompanionAvatar, avatar);
     companionLauncher.setAttribute('aria-label', `Customize ${nickname}'s avatar`);
   } else {
-    companionLauncherLabel.replaceChildren(...['Customize', 'Avatar'].map((word) => {
-      const line = document.createElement('span');
-      line.textContent = word;
-      return line;
-    }));
+    companionLauncherLabel.textContent = '';
     companionLauncher.classList.add('is-unpersonalized');
-    companionLauncherFace.hidden = true;
-    companionLauncher.setAttribute('aria-label', 'Customize avatar. Drag to move; click to personalize.');
+    companionLauncherFace.hidden = false;
+    companionLauncherFace.classList.add('is-placeholder');
+    companionLauncherFace.innerHTML = icon('user');
+    companionLauncher.setAttribute('aria-label', 'Study Companion. Drag to move; click to chat.');
   }
+  $('#nx-chat-customize').hidden = Boolean(savedCompanionAvatar);
   $('#nx-chat-title').textContent = nickname;
   const chatAvatar = $('#nx-chat-avatar-art');
   const oldChatAvatar = chatAvatar.querySelector('.nx-companion-avatar-rendered');
@@ -1379,7 +1379,7 @@ function enterCompanionAssistant() {
   location.hash = '#assistant';
 }
 
-$('#nx-companion-launcher').addEventListener('click', openCompanionCustomizer);
+$('#nx-companion-launcher').addEventListener('click', openCompanionChat);
 document.addEventListener('pointerdown', (event) => {
   if (!companionChat.classList.contains('is-open')) return;
   if (event.target.closest('#nx-companion-chat, #nx-companion-launcher')) return;
@@ -1391,6 +1391,7 @@ document.addEventListener('keydown', (event) => {
 $('#nx-companion-close').addEventListener('click', closeCompanionCustomizer);
 $('#nx-companion-skip').addEventListener('click', closeCompanionCustomizer);
 $('#nx-chat-close').addEventListener('click', () => closeCompanionChat(true));
+$('#nx-chat-customize').addEventListener('click', openCompanionCustomizer);
 $('#nx-settings-customize-companion').addEventListener('click', openCompanionCustomizer);
 $('#nx-chat-input').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
