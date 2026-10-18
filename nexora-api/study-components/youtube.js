@@ -42,13 +42,82 @@ function isNetworkFailure(error) {
   return isNetworkFailure(error.cause);
 }
 
+function responseHasCaptionTracks(response) {
+  return response.clone().json().then(playerJson => {
+    const tracklist = playerJson.captions?.playerCaptionsTracklistRenderer || playerJson.playerCaptionsTracklistRenderer;
+    return Array.isArray(tracklist?.captionTracks) && tracklist.captionTracks.length > 0;
+  }).catch(() => false);
+}
+
+function createPlayerFetch(fetchImpl = (...args) => fetch(...args)) {
+  return async params => {
+    const primaryResponse = await fetchImpl(params.url, {
+      method:params.method,
+      headers:params.headers,
+      body:params.body,
+      signal:params.signal,
+    });
+    if (await responseHasCaptionTracks(primaryResponse)) return primaryResponse;
+
+    let playerBody;
+    try {
+      playerBody = JSON.parse(params.body || '{}');
+    } catch (_) {
+      return primaryResponse;
+    }
+    playerBody.context = playerBody.context || {};
+    playerBody.context.client = {
+      ...(playerBody.context.client || {}),
+      clientName:'IOS',
+      clientVersion:'20.10.4',
+    };
+    try {
+      const fallbackResponse = await fetchImpl(params.url, {
+        method:params.method,
+        headers:params.headers,
+        body:JSON.stringify(playerBody),
+        signal:params.signal,
+      });
+      if (await responseHasCaptionTracks(fallbackResponse)) return fallbackResponse;
+      console.warn('[youtube-transcript] iOS player fallback also returned no caption tracks', {
+        videoId:playerBody.videoId,
+        primaryStatus:primaryResponse.status,
+        fallbackStatus:fallbackResponse.status,
+      });
+    } catch (error) {
+      console.warn('[youtube-transcript] iOS player fallback request failed', {
+        videoId:playerBody.videoId,
+        errorName:error?.name || 'Error',
+        errorMessage:error?.message || 'Unknown error',
+      });
+    }
+    return primaryResponse;
+  };
+}
+
 async function fetchYouTubeLecture(value, options = {}) {
   const transcriptApi = options.transcriptApi || await import('youtube-transcript-plus');
   const listLanguagesImpl = options.listLanguagesImpl || transcriptApi.listLanguages;
   const fetchTranscriptImpl = options.fetchTranscriptImpl || transcriptApi.fetchTranscript;
+  const transcriptConfig = options.transcriptApi ? {} : {
+    playerFetch:options.playerFetch || createPlayerFetch(options.fetchImpl),
+  };
   const {videoId, sourceUrl} = parseYouTubeUrl(value);
   try {
-    const languages = await listLanguagesImpl(videoId);
+    let languages = [];
+    try {
+      languages = await listLanguagesImpl(videoId, transcriptConfig);
+    } catch (error) {
+      const canTryDirectTranscript =
+        error instanceof transcriptApi.YoutubeTranscriptNotAvailableError ||
+        error instanceof transcriptApi.YoutubeTranscriptNotAvailableLanguageError ||
+        error instanceof transcriptApi.YoutubeTranscriptDisabledError;
+      if (!canTryDirectTranscript) throw error;
+      console.warn('[youtube-transcript] language discovery failed; trying direct transcript retrieval', {
+        videoId,
+        errorName:error?.name || 'Error',
+      });
+    }
     const selected = selectCaptionLanguage(languages);
     // YouTube sometimes exposes captions in the player but omits them from
     // the language-list response. Try the transcript endpoint without a
@@ -57,14 +126,14 @@ async function fetchYouTubeLecture(value, options = {}) {
     if (selected) transcriptOptions.lang = selected.languageCode;
     let result;
     try {
-      result = await fetchTranscriptImpl(videoId, transcriptOptions);
+      result = await fetchTranscriptImpl(videoId, {...transcriptOptions, ...transcriptConfig});
     } catch (error) {
       const canRetryWithoutLanguage = selected && (
         error instanceof transcriptApi.YoutubeTranscriptNotAvailableError ||
         error instanceof transcriptApi.YoutubeTranscriptNotAvailableLanguageError
       );
       if (!canRetryWithoutLanguage) throw error;
-      result = await fetchTranscriptImpl(videoId, {videoDetails:true, retries:2});
+      result = await fetchTranscriptImpl(videoId, {videoDetails:true, retries:2, ...transcriptConfig});
     }
     const captions = formatCaptions(result.segments);
     if (captions.length < 300) throw new Error('This video has too little caption text to create reliable study notes.');
@@ -92,4 +161,5 @@ async function fetchYouTubeLecture(value, options = {}) {
   }
 }
 
-module.exports = { parseYouTubeUrl, selectCaptionLanguage, formatCaptions, fetchYouTubeLecture };
+module.exports = { parseYouTubeUrl, selectCaptionLanguage, formatCaptions, createPlayerFetch, fetchYouTubeLecture };
+
