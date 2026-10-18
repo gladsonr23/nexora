@@ -66,7 +66,7 @@
     try{
       previewDialog.querySelector('.nx-pdf-preview-title').textContent=window.NexoraPdf.filename(currentNote);
       previewDialog.showModal();
-      const viewer=await import('./pdf-viewer-react.js?v=2');
+      const viewer=await import('./pdf-viewer-react.js?v=3');
       if(!previewDialog.open)return;
       const data=new Uint8Array(makePdf().output('arraybuffer'));
       unmountPdfViewer=viewer.mountPdfViewer(previewDialog.querySelector('#nx-pdf-react-root'),{data,fileName:window.NexoraPdf.filename(currentNote)});

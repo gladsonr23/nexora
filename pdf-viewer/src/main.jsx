@@ -15,8 +15,23 @@ function PdfViewer({ data, fileName, onPageCount }) {
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1);
   const [error, setError] = useState('');
+  const [pageWidth, setPageWidth] = useState(0);
   const pageScroller = useRef(null);
   useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl]);
+
+  useEffect(() => {
+    const scroller = pageScroller.current;
+    if (!scroller) return undefined;
+    const measurePageWidth = () => {
+      const style = getComputedStyle(scroller);
+      const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      setPageWidth(Math.max(0, Math.floor(scroller.clientWidth - horizontalPadding)));
+    };
+    measurePageWidth();
+    const observer = new ResizeObserver(measurePageWidth);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const scroller = pageScroller.current;
@@ -57,7 +72,7 @@ function PdfViewer({ data, fileName, onPageCount }) {
             {pageCount > 0 && Array.from({ length: pageCount }, (_, index) => {
               const number = index + 1;
               return <div className="nx-react-pdf-page-item" data-page-number={number} key={number}>
-                <Page pageNumber={number} scale={scale} renderTextLayer renderAnnotationLayer />
+                <Page pageNumber={number} width={pageWidth || undefined} scale={scale} renderTextLayer renderAnnotationLayer />
               </div>;
             })}
           </Document>
