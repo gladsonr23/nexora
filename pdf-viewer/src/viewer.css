@@ -6,7 +6,8 @@
 .nx-react-pdf-group button:disabled { opacity: .45; cursor: default; }
 .nx-react-pdf-page-count, .nx-react-pdf-zoom { min-width: 48px; color: var(--nx-muted); font-size: 12px; text-align: center; }
 .nx-react-pdf-page { display: flex; justify-content: center; align-items: flex-start; min-height: 0; overflow: auto; padding: 24px; background: var(--nx-surface-soft); }
-.nx-react-pdf-page .react-pdf__Document { max-width: 100%; }
+.nx-react-pdf-page .react-pdf__Document { display: grid; justify-items: center; gap: 20px; width: 100%; max-width: 100%; }
+.nx-react-pdf-page-item { width: 100%; max-width: 100%; }
 .nx-react-pdf-page .react-pdf__Page { max-width: 100%; margin-inline: auto; background: white; box-shadow: 0 3px 18px rgba(0,0,0,.22); }
 .nx-react-pdf-page .react-pdf__Page canvas { display: block; max-width: 100%; height: auto !important; }
 .nx-react-pdf-message, .nx-react-pdf-error { margin: 24px auto; color: var(--nx-muted); text-align: center; }

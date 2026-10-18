@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Document, Page, pdfjs } from 'react-pdf';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -15,7 +15,21 @@ function PdfViewer({ data, fileName, onPageCount }) {
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1);
   const [error, setError] = useState('');
+  const pageScroller = useRef(null);
   useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl]);
+
+  useEffect(() => {
+    const scroller = pageScroller.current;
+    if (!scroller || !pageCount) return undefined;
+    const observer = new IntersectionObserver(entries => {
+      const mostVisible = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (mostVisible) setPageNumber(Number(mostVisible.target.dataset.pageNumber));
+    }, { root: scroller, threshold: [0.35, 0.6, 0.85] });
+    scroller.querySelectorAll('[data-page-number]').forEach(page => observer.observe(page));
+    return () => observer.disconnect();
+  }, [pageCount]);
 
   function onDocumentLoad({ numPages }) {
     setPageCount(numPages);
@@ -27,11 +41,7 @@ function PdfViewer({ data, fileName, onPageCount }) {
     <div className="nx-react-pdf">
       <nav className="nx-react-pdf-toolbar" aria-label="PDF controls">
         <div className="nx-react-pdf-group">
-          <button type="button" onClick={() => setPageNumber(1)} disabled={pageNumber <= 1} aria-label="First page">|‹</button>
-          <button type="button" onClick={() => setPageNumber(value => Math.max(1, value - 1))} disabled={pageNumber <= 1} aria-label="Previous page">‹</button>
-          <span className="nx-react-pdf-page-count">{pageCount ? `${pageNumber} / ${pageCount}` : 'Loading…'}</span>
-          <button type="button" onClick={() => setPageNumber(value => Math.min(pageCount, value + 1))} disabled={!pageCount || pageNumber >= pageCount} aria-label="Next page">›</button>
-          <button type="button" onClick={() => setPageNumber(pageCount)} disabled={!pageCount || pageNumber >= pageCount} aria-label="Last page">›|</button>
+          <span className="nx-react-pdf-page-count" aria-live="polite">{pageCount ? `Page ${pageNumber} of ${pageCount}` : 'Loading…'}</span>
         </div>
         <div className="nx-react-pdf-group">
           <button type="button" onClick={() => setScale(value => Math.max(.55, +(value - .15).toFixed(2)))} disabled={scale <= .55} aria-label="Zoom out">−</button>
@@ -41,10 +51,15 @@ function PdfViewer({ data, fileName, onPageCount }) {
           <a href={downloadUrl} download={fileName}>Download</a>
         </div>
       </nav>
-      <div className="nx-react-pdf-page" aria-live="polite">
+      <div className="nx-react-pdf-page" ref={pageScroller} aria-label="PDF pages; scroll to read">
         {error ? <p className="nx-react-pdf-error" role="alert">{error}</p> : (
           <Document file={file} onLoadSuccess={onDocumentLoad} onLoadError={cause => setError(cause.message || 'Could not load the PDF.')} loading={<p className="nx-react-pdf-message">Preparing preview…</p>}>
-            {pageCount > 0 && <Page pageNumber={pageNumber} scale={scale} renderTextLayer renderAnnotationLayer />}
+            {pageCount > 0 && Array.from({ length: pageCount }, (_, index) => {
+              const number = index + 1;
+              return <div className="nx-react-pdf-page-item" data-page-number={number} key={number}>
+                <Page pageNumber={number} scale={scale} renderTextLayer renderAnnotationLayer />
+              </div>;
+            })}
           </Document>
         )}
       </div>

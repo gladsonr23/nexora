@@ -65,13 +65,14 @@
     try{
       previewDialog.querySelector('.nx-pdf-preview-title').textContent=window.NexoraPdf.filename(currentNote);
       previewDialog.showModal();
-      const viewer=await import('./pdf-viewer-react.js?v=1');
+      const viewer=await import('./pdf-viewer-react.js?v=2');
       if(!previewDialog.open)return;
       const data=new Uint8Array(makePdf().output('arraybuffer'));
       unmountPdfViewer=viewer.mountPdfViewer(previewDialog.querySelector('#nx-pdf-react-root'),{data,fileName:window.NexoraPdf.filename(currentNote)});
     }catch(error){if(previewDialog.open)previewDialog.close();if(typeof toast==='function')toast(error.message||'Could not open the PDF preview.');}
   });
   previewDialog.querySelector('[data-pdf-close]').addEventListener('click',()=>previewDialog.close());
+  previewDialog.addEventListener('click',event=>{if(event.target===previewDialog)previewDialog.close();});
   previewDialog.addEventListener('close',()=>{unmountPdfViewer?.();unmountPdfViewer=null;});
   $('#nx-save-note')?.addEventListener('click',async()=>{try{if(!currentNote||!window.NexoraVaultFileStore)throw new Error('Browser Vault is unavailable.');const file=new File([makePdf().output('blob')],window.NexoraPdf.filename(currentNote),{type:'application/pdf'});await window.NexoraVaultFileStore.putMany([file],{category:'Notes'});if(typeof toast==='function')toast('Study guide saved to this browser’s Vault.');}catch(error){if(typeof toast==='function')toast(error.message);}});
 })();
