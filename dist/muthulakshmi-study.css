@@ -3,9 +3,10 @@
 .nx-summarizer h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px,3vw,42px); font-weight: 600; line-height: 1.2; letter-spacing: -.035em; }
 .nx-summarizer-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; gap: 24px; width: 100%; }
 .nx-summarizer:not(.nx-has-notes) .nx-summarizer-layout { grid-template-columns: minmax(0,960px); justify-content: center; }
+.nx-summarizer.nx-has-notes .nx-summarizer-layout { grid-template-columns: minmax(0,1fr); }
 .nx-caption-form, .nx-notes-column { min-width: 0; padding: 24px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); }
 .nx-caption-form { display: grid; }
-.nx-summarizer.nx-has-notes .nx-caption-form { position: sticky; top: 84px; align-self: start; }
+.nx-summarizer.nx-has-notes .nx-caption-form { position: static; align-self: stretch; }
 .nx-caption-form .nx-section-head { margin-bottom: 20px; }
 .nx-caption-form h2, .nx-notes-toolbar h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 600; }
 .nx-caption-form > label:not(.nx-file-button) { margin: 16px 0 7px; font-size: 13px; font-weight: 700; }
@@ -141,7 +142,6 @@
 }
 @media (max-width: 900px){
 .nx-summarizer-layout, .nx-summarizer.nx-has-notes .nx-summarizer-layout { grid-template-columns: minmax(0,1fr); }
-.nx-summarizer.nx-has-notes .nx-caption-form { position: static; }
 }
 @media (max-width: 1050px){
 .nx-pattern-intro, .nx-pattern-charts { grid-template-columns: 1fr; }

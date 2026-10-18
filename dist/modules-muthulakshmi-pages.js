@@ -40,7 +40,8 @@
     });
     const recap=document.createElement('section');recap.className='nx-note-section nx-note-recap';text(recap,'h3','','Key takeaways');
     const list=document.createElement('ul');(Array.isArray(note.takeaways)?note.takeaways:[]).forEach(item=>text(list,'li','',item));recap.append(list);noteHost.append(recap);
-    $('#nx-summarizer').classList.add('nx-has-notes');$('#nx-notes-column').hidden=false;$('#nx-note-status').textContent='Notes ready';
+    const notesColumn=$('#nx-notes-column');notesColumn.parentElement.insertBefore(notesColumn,form);
+    $('#nx-summarizer').classList.add('nx-has-notes');notesColumn.hidden=false;$('#nx-note-status').textContent='Notes ready';
   }
   form?.addEventListener('submit',async event=>{
     event.preventDefault();const error=$('#nx-summarizer-error'),button=$('#nx-generate'),sourceUrl=$('#nx-video-url').value.trim();
@@ -72,7 +73,11 @@
     }catch(error){if(previewDialog.open)previewDialog.close();if(typeof toast==='function')toast(error.message||'Could not open the PDF preview.');}
   });
   previewDialog.querySelector('[data-pdf-close]').addEventListener('click',()=>previewDialog.close());
-  previewDialog.addEventListener('click',event=>{if(event.target===previewDialog)previewDialog.close();});
+  document.addEventListener('pointerdown',event=>{
+    if(!previewDialog.open)return;
+    const bounds=previewDialog.getBoundingClientRect();
+    if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)previewDialog.close();
+  },true);
   previewDialog.addEventListener('close',()=>{unmountPdfViewer?.();unmountPdfViewer=null;});
   $('#nx-save-note')?.addEventListener('click',async()=>{try{if(!currentNote||!window.NexoraVaultFileStore)throw new Error('Browser Vault is unavailable.');const file=new File([makePdf().output('blob')],window.NexoraPdf.filename(currentNote),{type:'application/pdf'});await window.NexoraVaultFileStore.putMany([file],{category:'Notes'});if(typeof toast==='function')toast('Study guide saved to this browser’s Vault.');}catch(error){if(typeof toast==='function')toast(error.message);}});
 })();
