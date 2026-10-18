@@ -94,7 +94,7 @@
 .nx-m3-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border: 1px solid var(--nx-line); border-radius: 12px; background: var(--nx-bg); }
 .nx-m3-seg button { min-height: 40px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--nx-muted); font: 600 13px/1 inherit; cursor: pointer; }
 .nx-m3-seg button:hover { color: var(--nx-text); }
-.nx-m3-seg button[aria-pressed="true"] { background: var(--nx-accent); color: var(--nx-sidebar-selected-text); }
+.nx-m3-seg button[aria-pressed="true"] { background: var(--nx-accent); color: var(--nx-accent-foreground); }
 
 .nx-m3-pill { display: inline-flex; align-items: center; max-width: 100%; padding: 4px 11px; border-radius: 999px; background: var(--nx-accent-soft); color: var(--nx-status-text); font-size: 11px; font-weight: 700; letter-spacing: .04em; overflow-wrap: anywhere; }
 .nx-m3-badge { display: inline-flex; align-items: center; padding: 3px 10px; border: 1px solid var(--nx-line); border-radius: 999px; color: var(--nx-text); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -259,12 +259,12 @@ html.nx-m3-lock { overflow: hidden; }
 .nx-m3-cycle { color: var(--nx-muted); font-size: 12px; font-weight: 600; }
 .nx-m3-immersive .nx-m3-ring-track { stroke: rgba(219, 235, 228, .24); }
 .nx-m3-immersive .nx-m3-ring-bar,
-.nx-m3-immersive .nx-m3-ring.is-break .nx-m3-ring-bar { stroke: #9bdacb; }
+.nx-m3-immersive .nx-m3-ring.is-break .nx-m3-ring-bar { stroke: var(--nx-chart-4); }
 .nx-m3-immersive .nx-m3-clock {
-  background: none; animation: none; -webkit-text-fill-color: #f6efe3; color: #f6efe3;
+  background: none; animation: none; -webkit-text-fill-color: var(--nx-text); color: var(--nx-text);
 }
-.nx-m3-immersive .nx-m3-clock-mode { color: #bce9dd; }
-.nx-m3-immersive .nx-m3-cycle { color: #d9e4df; }
+.nx-m3-immersive .nx-m3-clock-mode { color: var(--nx-status-text); }
+.nx-m3-immersive .nx-m3-cycle { color: var(--nx-text); }
 .nx-m3-immersive .nx-m3-timer { width: min(100%, 760px); justify-self: center; gap: 28px; padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
 .nx-m3-immersive .nx-m3-timer-tools { justify-content: flex-end; }
 .nx-m3-immersive .nx-m3-timer-tools .nx-m3-chips, .nx-m3-immersive .nx-m3-timer .nx-m3-seg,

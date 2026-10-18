@@ -1,81 +1,85 @@
 :root {
   color-scheme: light;
-  --nx-bg: oklch(0.9610 0.0124 91.5185);
-  --nx-surface: oklch(0.9344 0.0181 89.3612);
-  --nx-surface-soft: oklch(0.8830 0.0295 89.5857);
-  --nx-text: oklch(0.2831 0.0070 67.5405);
-  --nx-muted: oklch(0.4590 0.0142 79.7159);
-  --nx-subtle: oklch(0.4590 0.0142 79.7159);
-  --nx-line: oklch(0.8222 0.0386 88.4798);
-  --nx-accent: oklch(0.4514 0.1325 24.1148);
-  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 12%, var(--nx-bg));
-  --nx-status-text: oklch(0.9610 0.0124 91.5185);
-  --nx-secondary: oklch(0.3928 0.0411 188.5783);
-  --nx-secondary-text: oklch(0.9610 0.0124 91.5185);
-  --nx-sidebar: oklch(0.9143 0.0296 87.5490);
-  --nx-sidebar-text: oklch(0.2831 0.0070 67.5405);
-  --nx-sidebar-muted: oklch(0.4590 0.0142 79.7159);
-  --nx-sidebar-selected: oklch(0.7862 0.0638 74.6190);
-  --nx-sidebar-selected-text: oklch(0.2831 0.0070 67.5405);
-  --nx-highlight: oklch(0.4514 0.1325 24.1148);
-  --nx-focus-bg: color-mix(in srgb, var(--nx-secondary) 12%, var(--nx-surface));
-  --nx-focus-text: oklch(0.2831 0.0070 67.5405);
-  --nx-focus-muted: oklch(0.4590 0.0142 79.7159);
-  --nx-ring: oklch(0.4514 0.1325 24.1148);
-  --nx-error: oklch(0.3959 0.1221 28.9715);
-  --nx-logo-left: color-mix(in srgb, var(--nx-secondary) 32%, var(--nx-bg));
-  --nx-logo-right: oklch(0.4514 0.1325 24.1148);
-  --nx-logo-base: oklch(0.3928 0.0411 188.5783);
-  --nx-logo-shade: oklch(0.2831 0.0070 67.5405);
-  --nx-logo-page: oklch(0.7862 0.0638 74.6190);
+  --nx-bg: #f3fafb;
+  --nx-surface: #ffffff;
+  --nx-surface-soft: #eaf4f5;
+  --nx-text: #172326;
+  --nx-muted: #53666b;
+  --nx-subtle: #65787d;
+  --nx-line: #d6e2e4;
+  --nx-accent: #03a2bc;
+  --nx-accent-soft: #e4f4f6;
+  --nx-status-text: #087080;
+  --nx-secondary: #eaaa2c;
+  --nx-secondary-text: #221202;
+  --nx-sidebar: #eaf4f5;
+  --nx-sidebar-text: #172326;
+  --nx-sidebar-muted: #5d7075;
+  --nx-sidebar-selected: #dceff2;
+  --nx-sidebar-selected-text: #172326;
+  --nx-highlight: #03a2bc;
+  --nx-focus-bg: #e4f4f6;
+  --nx-focus-text: #172326;
+  --nx-focus-muted: #53666b;
+  --nx-ring: #008095;
+  --nx-error: #c84b2b;
+  --nx-logo-left: #d6e9ec;
+  --nx-logo-right: #5db4bf;
+  --nx-logo-base: #084150;
+  --nx-logo-shade: #1b8fa5;
+  --nx-logo-page: #eaaa2c;
   --nx-radius: 14px;
   --nx-serif: "Anthropic Serif", "Tiempos Text", Georgia, "Times New Roman", serif;
   --nx-surface-inset: color-mix(in srgb, var(--nx-surface) 60%, var(--nx-bg));
-  --nx-accent-foreground: oklch(0.9610 0.0124 91.5185);
-  --nx-accent-ink: oklch(0.4514 0.1325 24.1148);
-  --nx-logo-letter: oklch(0.2831 0.0070 67.5405);
-  --nx-chart-3: oklch(0.7862 0.0638 74.6190);
-  --nx-chart-4: oklch(0.4955 0.0896 126.1858);
-  --nx-chart-5: oklch(0.4708 0.1121 50.8452);
+  --nx-accent-foreground: #010406;
+  --nx-accent-ink: #008095;
+  --nx-logo-letter: #172326;
+  --nx-chart-1: #1b8fa5;
+  --nx-chart-2: #eaaa2c;
+  --nx-chart-3: #30893e;
+  --nx-chart-4: #5db4bf;
+  --nx-chart-5: #cd5537;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --nx-bg: oklch(0.2102 0.0066 78.1754);
-  --nx-surface: oklch(0.2496 0.0087 75.2025);
-  --nx-surface-soft: oklch(0.2868 0.0084 75.2489);
-  --nx-text: oklch(0.9143 0.0296 87.5490);
-  --nx-muted: oklch(0.6915 0.0259 85.7973);
-  --nx-subtle: oklch(0.6915 0.0259 85.7973);
-  --nx-line: oklch(0.3432 0.0152 79.6399);
-  --nx-accent: oklch(0.5175 0.1557 29.2441);
-  --nx-accent-soft: color-mix(in srgb, var(--nx-accent) 18%, var(--nx-bg));
-  --nx-status-text: oklch(0.9143 0.0296 87.5490);
-  --nx-secondary: oklch(0.4941 0.0503 188.4094);
-  --nx-secondary-text: oklch(0.9143 0.0296 87.5490);
-  --nx-sidebar: oklch(0.1883 0.0051 67.5074);
-  --nx-sidebar-text: oklch(0.9143 0.0296 87.5490);
-  --nx-sidebar-muted: oklch(0.6915 0.0259 85.7973);
-  --nx-sidebar-selected: oklch(0.4941 0.0503 188.4094);
-  --nx-sidebar-selected-text: oklch(0.9143 0.0296 87.5490);
-  --nx-highlight: oklch(0.5175 0.1557 29.2441);
-  --nx-focus-bg: color-mix(in srgb, var(--nx-secondary) 16%, var(--nx-surface));
-  --nx-focus-text: oklch(0.9143 0.0296 87.5490);
-  --nx-focus-muted: oklch(0.6915 0.0259 85.7973);
-  --nx-ring: oklch(0.5175 0.1557 29.2441);
-  --nx-error: color-mix(in srgb, oklch(0.4463 0.1399 29.2972) 50%, var(--nx-text));
-  --nx-logo-left: color-mix(in srgb, var(--nx-secondary) 34%, var(--nx-text));
-  --nx-logo-right: oklch(0.5175 0.1557 29.2441);
-  --nx-logo-base: oklch(0.4941 0.0503 188.4094);
-  --nx-logo-shade: oklch(0.1883 0.0051 67.5074);
-  --nx-logo-page: oklch(0.6180 0.0778 65.5444);
+  --nx-bg: #020608;
+  --nx-surface: #060e11;
+  --nx-surface-soft: #111d20;
+  --nx-text: #d2d9da;
+  --nx-muted: #9ba5a7;
+  --nx-subtle: #80888a;
+  --nx-line: #1e2b30;
+  --nx-accent: #03a2bc;
+  --nx-accent-soft: #084150;
+  --nx-status-text: #9bdce2;
+  --nx-secondary: #eaaa2c;
+  --nx-secondary-text: #221202;
+  --nx-sidebar: #010405;
+  --nx-sidebar-text: #d2d9da;
+  --nx-sidebar-muted: #80888a;
+  --nx-sidebar-selected: #060e11;
+  --nx-sidebar-selected-text: #d2d9da;
+  --nx-highlight: #03a2bc;
+  --nx-focus-bg: #084150;
+  --nx-focus-text: #d2d9da;
+  --nx-focus-muted: #b3c4c7;
+  --nx-ring: #008095;
+  --nx-error: #e45937;
+  --nx-logo-left: #d6e9ec;
+  --nx-logo-right: #5db4bf;
+  --nx-logo-base: #084150;
+  --nx-logo-shade: #1b8fa5;
+  --nx-logo-page: #eaaa2c;
   --nx-surface-inset: color-mix(in srgb, var(--nx-surface) 60%, var(--nx-bg));
-  --nx-accent-foreground: oklch(0.9143 0.0296 87.5490);
-  --nx-accent-ink: oklch(0.6782 0.1227 62.1816);
-  --nx-logo-letter: oklch(0.9143 0.0296 87.5490);
-  --nx-chart-3: oklch(0.6180 0.0778 65.5444);
-  --nx-chart-4: oklch(0.5995 0.1374 126.3225);
-  --nx-chart-5: oklch(0.6782 0.1227 62.1816);
+  --nx-accent-foreground: #010406;
+  --nx-accent-ink: #008095;
+  --nx-logo-letter: #d2d9da;
+  --nx-chart-1: #1b8fa5;
+  --nx-chart-2: #eaaa2c;
+  --nx-chart-3: #30893e;
+  --nx-chart-4: #5db4bf;
+  --nx-chart-5: #cd5537;
 }
 
 :root .glide-select {
@@ -910,7 +914,7 @@ body,
 
 .nx-companion-genders button[aria-pressed="true"] {
   background: var(--nx-accent);
-  color: #fffaf6;
+  color: var(--nx-accent-foreground);
   box-shadow: 0 2px 8px rgba(61, 37, 27, .12);
 }
 
@@ -1087,7 +1091,7 @@ body,
 
 .nx-primary-button {
   background: var(--nx-accent);
-  color: var(--nx-sidebar-selected-text);
+  color: var(--nx-accent-foreground);
 }
 
 .nx-primary-button:hover {

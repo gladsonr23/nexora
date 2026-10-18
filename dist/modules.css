@@ -91,7 +91,7 @@
 .nxs-overview strong { font-size: 16px; }
 .nxs-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .nxs-tabs button { padding: 7px 14px; border: 1px solid var(--nx-line); border-radius: 20px; background: var(--nx-surface); font-size: 12px; font-weight: 650; color: var(--nx-muted); }
-.nxs-tabs button.nxs-tab-active { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-sidebar-selected-text); }
+.nxs-tabs button.nxs-tab-active { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-foreground); }
 .nxs-tasklist { display: grid; gap: 10px; }
 .nxs-task { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 12px 16px; border: 1px solid var(--nx-line); border-radius: 10px; background: var(--nx-surface); }
 .nxs-task.nxs-task-completed strong { text-decoration: line-through; color: var(--nx-subtle); }
