@@ -40,7 +40,7 @@
     });
     const recap=document.createElement('section');recap.className='nx-note-section nx-note-recap';text(recap,'h3','','Key takeaways');
     const list=document.createElement('ul');(Array.isArray(note.takeaways)?note.takeaways:[]).forEach(item=>text(list,'li','',item));recap.append(list);noteHost.append(recap);
-    const notesColumn=$('#nx-notes-column');notesColumn.parentElement.insertBefore(notesColumn,form);
+    const notesColumn=$('#nx-notes-column');
     $('#nx-summarizer').classList.add('nx-has-notes');notesColumn.hidden=false;$('#nx-note-status').textContent='Notes ready';
   }
   form?.addEventListener('submit',async event=>{
