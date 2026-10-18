@@ -43,26 +43,46 @@ function isNetworkFailure(error) {
 }
 
 async function fetchYouTubeLecture(value, options = {}) {
-  const transcriptApi = await import('youtube-transcript-plus');
+  const transcriptApi = options.transcriptApi || await import('youtube-transcript-plus');
   const listLanguagesImpl = options.listLanguagesImpl || transcriptApi.listLanguages;
   const fetchTranscriptImpl = options.fetchTranscriptImpl || transcriptApi.fetchTranscript;
   const {videoId, sourceUrl} = parseYouTubeUrl(value);
   try {
     const languages = await listLanguagesImpl(videoId);
     const selected = selectCaptionLanguage(languages);
-    if (!selected) throw new Error('This video has no accessible captions. Try a lecture with captions enabled.');
-    const result = await fetchTranscriptImpl(videoId, {lang:selected.languageCode, videoDetails:true, retries:2});
+    // YouTube sometimes exposes captions in the player but omits them from
+    // the language-list response. Try the transcript endpoint without a
+    // language hint before concluding that no captions are available.
+    const transcriptOptions = {videoDetails:true, retries:2};
+    if (selected) transcriptOptions.lang = selected.languageCode;
+    let result;
+    try {
+      result = await fetchTranscriptImpl(videoId, transcriptOptions);
+    } catch (error) {
+      const canRetryWithoutLanguage = selected && (
+        error instanceof transcriptApi.YoutubeTranscriptNotAvailableError ||
+        error instanceof transcriptApi.YoutubeTranscriptNotAvailableLanguageError
+      );
+      if (!canRetryWithoutLanguage) throw error;
+      result = await fetchTranscriptImpl(videoId, {videoDetails:true, retries:2});
+    }
     const captions = formatCaptions(result.segments);
     if (captions.length < 300) throw new Error('This video has too little caption text to create reliable study notes.');
     if (captions.length > 240_000) throw new Error('This lecture is too long for one set of notes. Try a shorter video.');
     const title = String(result.videoDetails?.title || '').trim();
     if (!title) throw new Error('Could not read the lecture title from YouTube.');
-    const languageCode = result.segments?.[0]?.lang || selected.languageCode;
+    const languageCode = result.segments?.[0]?.lang || selected?.languageCode || 'unknown';
     return {videoId, sourceUrl, title:title.slice(0, 200), captions, languageCode,
       languageWarning:!/^en(?:-|$)/i.test(languageCode)};
   } catch (error) {
-    if (error instanceof transcriptApi.YoutubeTranscriptDisabledError || error instanceof transcriptApi.YoutubeTranscriptNotAvailableError) {
-      throw new Error('This video has no accessible captions. Try a lecture with captions enabled.');
+    console.warn('[youtube-transcript] caption retrieval failed', {
+      videoId,
+      errorName:error?.name || 'Error',
+      errorMessage:error?.message || 'Unknown error',
+    });
+    if (error instanceof transcriptApi.YoutubeTranscriptDisabledError) throw new Error('YouTube reports that captions are disabled for this video.');
+    if (error instanceof transcriptApi.YoutubeTranscriptNotAvailableError || error instanceof transcriptApi.YoutubeTranscriptNotAvailableLanguageError) {
+      throw new Error('YouTube did not return transcript data to Nexora. Captions may still be visible in the player; try again shortly.');
     }
     if (error instanceof transcriptApi.YoutubeTranscriptVideoUnavailableError) throw new Error('This YouTube video is unavailable or private.');
     if (isNetworkFailure(error)) {
