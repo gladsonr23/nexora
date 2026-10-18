@@ -597,11 +597,13 @@ body,
 .nx-chat-avatar[hidden] { display: none; }
 
 .nx-companion-launcher.is-unpersonalized {
+  right: 10px;
   width: 164px;
   min-height: 44px;
   padding: 10px 12px;
   justify-items: center;
-  border-radius: 0;
+  border-right: 1px solid var(--nx-line);
+  border-radius: 12px;
 }
 
 .nx-companion-launcher-face .nx-icon,
