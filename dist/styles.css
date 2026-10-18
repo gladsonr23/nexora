@@ -523,8 +523,10 @@ body,
   cursor: grab;
   touch-action: none;
   user-select: none;
-  transition: border-color .18s ease, box-shadow .18s ease;
+  transition: border-color .18s ease, box-shadow .18s ease, translate .22s cubic-bezier(.2, .8, .2, 1);
 }
+
+.nx-companion-launcher.is-dodging { translate: 0 var(--companion-dodge-y, -42px); }
 
 /* SpecularButton-inspired rim light, kept lightweight for the vanilla dashboard. */
 .nx-companion-launcher::before {
@@ -579,6 +581,10 @@ body,
   cursor: grabbing;
   transition: none;
   box-shadow: 0 16px 42px rgba(37, 32, 28, .28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-companion-launcher { transition-duration: .01ms; }
 }
 
 .nx-companion-launcher-face {

@@ -1587,6 +1587,35 @@ window.addEventListener('resize', () => {
   if (Number.isFinite(top)) applyCompanionPosition({ left: window.innerWidth, top });
 });
 
+function resetCompanionDodge() {
+  companionLauncher.classList.remove('is-dodging');
+  companionLauncher.style.removeProperty('--companion-dodge-y');
+}
+
+function updateCompanionProximity(event) {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches || companionDrag) {
+    resetCompanionDodge();
+    return;
+  }
+  if (companionLauncher.contains(event.target)) return;
+
+  const rect = companionLauncher.getBoundingClientRect();
+  const closestX = Math.max(rect.left, Math.min(event.clientX, rect.right));
+  const closestY = Math.max(rect.top, Math.min(event.clientY, rect.bottom));
+  const distance = Math.hypot(event.clientX - closestX, event.clientY - closestY);
+  const isDodging = companionLauncher.classList.contains('is-dodging');
+  if (isDodging ? distance < 150 : distance > 100) return;
+  if (isDodging) {
+    resetCompanionDodge();
+    return;
+  }
+
+  let offsetY = event.clientY < rect.top + rect.height / 2 ? 42 : -42;
+  if (rect.top + offsetY < 8 || rect.bottom + offsetY > window.innerHeight - 8) offsetY *= -1;
+  companionLauncher.style.setProperty('--companion-dodge-y', `${offsetY}px`);
+  companionLauncher.classList.add('is-dodging');
+}
+
 companionLauncher.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   const rect = companionLauncher.getBoundingClientRect();
@@ -1604,6 +1633,7 @@ document.addEventListener('pointermove', (event) => {
   const specularRect = companionLauncher.getBoundingClientRect();
   const angle = Math.atan2(event.clientY - (specularRect.top + specularRect.height / 2), event.clientX - (specularRect.left + specularRect.width / 2)) * 180 / Math.PI + 90;
   companionLauncher.style.setProperty('--specular-angle', `${angle}deg`);
+  updateCompanionProximity(event);
   if (!companionDrag || event.pointerId !== companionDrag.pointerId) return;
   const deltaX = event.clientX - companionDrag.startX;
   const deltaY = event.clientY - companionDrag.startY;
@@ -1628,6 +1658,7 @@ function finishCompanionDrag(event) {
 
 document.addEventListener('pointerup', finishCompanionDrag);
 document.addEventListener('pointercancel', finishCompanionDrag);
+window.addEventListener('blur', resetCompanionDodge);
 companionLauncher.addEventListener('click', (event) => {
   if (!companionSuppressClick) return;
   event.preventDefault();
