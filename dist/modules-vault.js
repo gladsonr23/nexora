@@ -29,20 +29,51 @@
         <div class="nxv-search">
           <input type="search" id="nxv-search" placeholder="Search materials by filename, subject, or category" aria-label="Search Vault">
         </div>
+        <div class="nxv-filter-control">
+          <span>Category</span>
+          <div id="nxv-filter-select"></div>
+        </div>
         <button type="button" class="nx-primary-button" id="nxv-upload-btn">
           ${typeof icon === 'function' ? icon('upload') : '<span aria-hidden="true">＋</span>'}<span>Upload material</span>
         </button>
         <input type="file" id="nxv-file-input" accept="application/pdf,.pdf" multiple hidden>
       </div>
-      <div class="nxv-filters" id="nxv-filters" aria-label="Filter by category">
-        <button type="button" class="nxv-chip ${state.category === 'All' ? 'nxv-chip-active' : ''}" data-category="All">All</button>
-        ${categories.map(category => `
-          <button type="button" class="nxv-chip ${state.category === category ? 'nxv-chip-active' : ''}" data-category="${escape(category)}">${escape(category)}</button>
-        `).join('')}
-      </div>
       <div id="nxv-upload-panel"></div>
       <div id="nxv-list" aria-live="polite"></div>
     `;
+  }
+
+  function renderCategorySelect(element, container) {
+    const options = ['All', ...categories];
+    const props = {
+      options,
+      value: state.category,
+      showTags: false,
+      ariaLabel: 'Filter Vault materials by category',
+      size: 'lg',
+      radius: 20,
+      menuWidth: 230,
+      accentColor: 'var(--nx-accent)',
+      surfaceColor: 'var(--nx-surface)',
+      highlightColor: 'var(--nx-accent-soft)',
+      textColor: 'var(--nx-text)',
+      onChange(value) {
+        state.category = value;
+        renderCategorySelect(element, container);
+        refreshList(container);
+      },
+    };
+
+    if (window.NexoraGlideSelect?.mount) {
+      window.NexoraGlideSelect.mount(element, props);
+      return;
+    }
+
+    element.innerHTML = `<select aria-label="Filter Vault materials by category">${options.map(option => `<option value="${escape(option)}" ${option === state.category ? 'selected' : ''}>${escape(option)}</option>`).join('')}</select>`;
+    element.querySelector('select').addEventListener('change', event => {
+      state.category = event.target.value;
+      refreshList(container);
+    });
   }
 
   function mount(container) {
@@ -52,19 +83,14 @@
       return;
     }
 
+    const previousCategorySelect = container.querySelector('#nxv-filter-select');
+    if (previousCategorySelect) window.NexoraGlideSelect?.unmount?.(previousCategorySelect);
     container.innerHTML = shell();
+    renderCategorySelect(container.querySelector('#nxv-filter-select'), container);
     const search = container.querySelector('#nxv-search');
     search.value = state.search;
     search.addEventListener('input', () => {
       state.search = search.value;
-      refreshList(container);
-    });
-
-    container.querySelector('#nxv-filters').addEventListener('click', event => {
-      const button = event.target.closest('[data-category]');
-      if (!button) return;
-      state.category = button.dataset.category;
-      container.querySelectorAll('.nxv-chip').forEach(chip => chip.classList.toggle('nxv-chip-active', chip === button));
       refreshList(container);
     });
 
