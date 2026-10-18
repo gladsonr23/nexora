@@ -76,6 +76,18 @@
 .nx-empty-state { width: 100%; padding: clamp(28px,5vw,56px) 0; text-align: left; }
 .nx-empty-state h2 { margin: 0 0 8px; }
 .nx-empty-state p { margin: 0; color: var(--nx-muted); }
+#nx-module.nx-vault-active { max-width: min(1200px,100%); margin-inline: auto; text-align: center; }
+#nx-module.nx-vault-active .nx-module-title-row { justify-content: center; }
+#nx-module.nx-vault-active .nx-module-description { margin-inline: auto; text-align: center; }
+#nx-module.nx-vault-active .nx-module-placeholder { text-align: center; }
+#nx-module.nx-vault-active .nxv-toolbar { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+#nx-module.nx-vault-active .nxv-search { flex: 0 1 440px; min-width: min(100%,260px); }
+#nx-module.nx-vault-active .nxv-filter-control { text-align: left; }
+#nx-module.nx-vault-active .nxv-upload-panel { width: min(100%,900px); margin-inline: auto; text-align: left; }
+#nx-module.nx-vault-active .nxv-upload-note { text-align: center; }
+#nx-module.nx-vault-active #nxv-list .nxm-empty { justify-items: center; margin-inline: auto; text-align: center; }
+#nx-module.nx-vault-active #nxv-list .nxm-empty p { margin-inline: auto; }
+#nx-module.nx-vault-active #nxv-list .nxv-list { text-align: left; }
 .nxv-list { border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); overflow: hidden; }
 .nxv-row { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--nx-line); }
 .nxv-row:last-child { border-bottom: 0; }
@@ -101,6 +113,10 @@
   .nxv-row { grid-template-columns: 1fr; }
   .nxv-row-actions { justify-content: flex-start; }
   .nxv-edit-fields { grid-template-columns: 1fr; }
+  #nx-module.nx-vault-active .nxv-toolbar { display: grid; grid-template-columns: minmax(0,1fr); }
+  #nx-module.nx-vault-active .nxv-search { min-width: 0; }
+  #nx-module.nx-vault-active .nxv-filter-control { justify-content: space-between; }
+  #nx-module.nx-vault-active .nxv-toolbar > .nx-primary-button { width: 100%; }
 }
 
 @media (min-width: 641px) and (max-width: 900px) {

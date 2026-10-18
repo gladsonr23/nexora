@@ -2029,6 +2029,7 @@ function navigate() {
     id === 'settings'
       ? id
       : 'overview';
+  $('#nx-module').classList.toggle('nx-vault-active', actual === 'vault');
   const registeredPage = window.NexoraPages?.[actual];
   const isCompanionFeature = ['flashloop', 'focus', 'analytics'].includes(actual);
   Object.entries(window.NexoraPages || {}).forEach(
