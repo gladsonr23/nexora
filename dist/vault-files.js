@@ -57,10 +57,18 @@
   }
 
   const get = id => transact('readonly', store => store.get(id));
+  async function update(id, changes = {}) {
+    const current = await get(id);
+    if (!current) return null;
+    const updated = {...current, ...changes, id: current.id};
+    await transact('readwrite', objectStore => objectStore.put(updated));
+    window.dispatchEvent(new Event('nexora:vault-updated'));
+    return {...updated, blob: undefined};
+  }
   async function remove(id) {
     await transact('readwrite', store => store.delete(id));
     window.dispatchEvent(new Event('nexora:vault-updated'));
   }
 
-  window.NexoraVaultFileStore = {putMany, list, get, remove};
+  window.NexoraVaultFileStore = {putMany, list, get, update, remove};
 })();

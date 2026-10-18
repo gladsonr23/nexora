@@ -1,37 +1,247 @@
 /**
- * Temporary browser-only Vault. Files remain in this browser's IndexedDB.
+ * Browser-local Vault UI adapted from Aishwarya's Vault component.
+ * Files and metadata stay in this browser's IndexedDB; this module makes no API calls.
  */
 (function () {
   const store = window.NexoraVaultFileStore;
-  const categories = ['Syllabi','Lecture Slides','Notes','Assignments','PYQs','Question Banks','Other'];
-  const escape = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const prettySize = value => value < 1024 ? `${value} B` : value < 1048576 ? `${Math.round(value/1024)} KB` : `${(value/1048576).toFixed(1)} MB`;
-  let query='',category='All';
-  function shell(){return `<div class="nxv-toolbar">
-    <div class="nxv-search"><input id="nxv-search" type="search" placeholder="Search your files" aria-label="Search your Vault"></div>
-    <label class="nxv-category-label">Category <select id="nxv-category"><option>All</option>${categories.map(item=>`<option>${escape(item)}</option>`).join('')}</select></label>
-    <form class="nxv-upload-form" id="nxv-upload-form"><label for="nxv-file-input">Add files</label><input id="nxv-file-input" type="file" multiple accept=".pdf,.txt,.doc,.docx,.ppt,.pptx,image/*"><button class="nx-primary-button" type="submit">Save to this browser</button><p class="nx-form-help">Files stay in this browser on this device. They do not sync between devices.</p></form>
-    <div id="nxv-list" aria-live="polite"></div></div>`;}
-  async function refresh(container){
-    const host=container.querySelector('#nxv-list');if(!host)return;host.textContent='Loading your Vault…';
-    try{
-      const records=await store.list(),filtered=records.filter(file=>(category==='All'||file.category===category)&&(!query||`${file.name} ${file.subject||''} ${file.category||''}`.toLowerCase().includes(query.toLowerCase())));
-      if(!filtered.length){host.innerHTML='<div class="nx-empty-state"><h2>No files here yet</h2><p>Add study materials above. They are stored only in this browser.</p></div>';return;}
-      host.innerHTML=`<div class="nxv-list">${filtered.map(file=>`<article class="nxv-row" data-file-id="${escape(file.id)}"><div class="nxv-file"><strong>${escape(file.name)}</strong><small>${escape(file.category||'Other')} · ${prettySize(file.size||0)} · ${new Date(file.createdAt).toLocaleDateString('en-IN')}</small></div><div class="nxv-actions"><button type="button" data-action="open">Open</button><button type="button" data-action="download">Download</button><button type="button" data-action="delete">Remove</button></div></article>`).join('')}</div>`;
-    }catch(error){host.innerHTML=`<div role="alert" class="nx-form-error">${escape(error.message||'Could not open browser storage.')}</div>`;}
+  const { toast, escapeHtml, formatDate, icon } = window.NexoraShared || {};
+  const categories = [
+    'Syllabi',
+    'Lecture Slides',
+    'Notes',
+    'Assignments',
+    'PYQs',
+    'Question Banks',
+    'Other',
+  ];
+  const state = { search: '', category: 'All', pendingFiles: [] };
+
+  const escape = value => typeof escapeHtml === 'function'
+    ? escapeHtml(value)
+    : String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  const notify = message => typeof toast === 'function' ? toast(message) : console.info('[Vault]', message);
+  const prettySize = value => value < 1024 ? `${value} B` : value < 1048576 ? `${Math.round(value / 1024)} KB` : `${(value / 1048576).toFixed(1)} MB`;
+  const dateLabel = value => typeof formatDate === 'function' ? formatDate(value) : new Date(value).toLocaleDateString();
+
+  function shell() {
+    return `
+      <div class="nxv-toolbar">
+        <div class="nxv-search">
+          <input type="search" id="nxv-search" placeholder="Search materials by filename, subject, or category" aria-label="Search Vault">
+        </div>
+        <button type="button" class="nx-primary-button" id="nxv-upload-btn">
+          ${typeof icon === 'function' ? icon('upload') : '<span aria-hidden="true">＋</span>'}<span>Upload material</span>
+        </button>
+        <input type="file" id="nxv-file-input" accept="application/pdf,.pdf" multiple hidden>
+      </div>
+      <div class="nxv-filters" id="nxv-filters" aria-label="Filter by category">
+        <button type="button" class="nxv-chip ${state.category === 'All' ? 'nxv-chip-active' : ''}" data-category="All">All</button>
+        ${categories.map(category => `
+          <button type="button" class="nxv-chip ${state.category === category ? 'nxv-chip-active' : ''}" data-category="${escape(category)}">${escape(category)}</button>
+        `).join('')}
+      </div>
+      <div id="nxv-upload-panel"></div>
+      <div id="nxv-list" aria-live="polite"></div>
+    `;
   }
-  async function mount(container){
-    if(!container||!store){if(container)container.innerHTML='<p role="alert">Browser storage is unavailable in this browser.</p>';return;}
-    container.innerHTML=shell();const search=container.querySelector('#nxv-search'),select=container.querySelector('#nxv-category');
-    search.value=query;select.value=category;search.addEventListener('input',()=>{query=search.value;refresh(container);});select.addEventListener('change',()=>{category=select.value;refresh(container);});
-    container.querySelector('#nxv-upload-form').addEventListener('submit',async event=>{event.preventDefault();const input=container.querySelector('#nxv-file-input');if(!input.files.length)return;try{await store.putMany([...input.files],{category:category==='All'?'Notes':category});input.value='';if(typeof toast==='function')toast('Saved to this browser’s Vault.');await refresh(container);}catch(error){if(typeof toast==='function')toast(error.message||'Could not save these files.');}});
-    container.querySelector('#nxv-list').addEventListener('click',async event=>{const button=event.target.closest('[data-action]'),row=event.target.closest('[data-file-id]');if(!button||!row)return;const file=await store.get(row.dataset.fileId);if(!file)return;
-      if(button.dataset.action==='delete'){if(!confirm(`Remove “${file.name}” from this browser’s Vault?`))return;await store.remove(file.id);await refresh(container);return;}
-      const url=URL.createObjectURL(file.blob);
-      if(button.dataset.action==='download'){const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
-      else{const opened=window.open(url,'_blank','noopener,noreferrer');if(!opened&&typeof toast==='function')toast('Allow pop-ups to preview the file.');setTimeout(()=>URL.revokeObjectURL(url),60000);}
+
+  function mount(container) {
+    if (!container) return;
+    if (!store) {
+      container.innerHTML = '<div class="nxm-error"><p>Browser storage is unavailable, so the Vault could not be opened.</p></div>';
+      return;
+    }
+
+    container.innerHTML = shell();
+    const search = container.querySelector('#nxv-search');
+    search.value = state.search;
+    search.addEventListener('input', () => {
+      state.search = search.value;
+      refreshList(container);
     });
-    await refresh(container);
+
+    container.querySelector('#nxv-filters').addEventListener('click', event => {
+      const button = event.target.closest('[data-category]');
+      if (!button) return;
+      state.category = button.dataset.category;
+      container.querySelectorAll('.nxv-chip').forEach(chip => chip.classList.toggle('nxv-chip-active', chip === button));
+      refreshList(container);
+    });
+
+    container.querySelector('#nxv-upload-btn').addEventListener('click', () => container.querySelector('#nxv-file-input').click());
+    container.querySelector('#nxv-file-input').addEventListener('change', event => {
+      const selected = [...event.target.files];
+      const invalid = selected.find(file => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'));
+      if (invalid) {
+        event.target.value = '';
+        notify('Only PDF files are supported in the Vault.');
+        return;
+      }
+      state.pendingFiles = selected;
+      renderUploadPanel(container);
+    });
+    refreshList(container);
   }
-  window.NexoraVault={mount};
+
+  function renderUploadPanel(container) {
+    const panel = container.querySelector('#nxv-upload-panel');
+    if (!state.pendingFiles.length) {
+      panel.innerHTML = '';
+      return;
+    }
+
+    const names = state.pendingFiles.map(file => escape(file.name)).join(', ');
+    panel.innerHTML = `
+      <div class="nxv-upload-panel">
+        <p class="nxv-upload-note">Selected: <strong>${names}</strong><br>Files are saved only in this browser and do not sync across devices.</p>
+        <label class="nxm-field">Subject<input type="text" id="nxv-upload-subject" placeholder="e.g. Operating Systems" maxlength="120"></label>
+        <label class="nxm-field">Category<select id="nxv-upload-category">${categories.map(category => `<option value="${escape(category)}" ${category === 'Notes' ? 'selected' : ''}>${escape(category)}</option>`).join('')}</select></label>
+        <div class="nxv-upload-actions">
+          <button type="button" class="nx-secondary-button" id="nxv-upload-cancel">Cancel</button>
+          <button type="button" class="nx-primary-button" id="nxv-upload-confirm"><span>Add to Vault</span></button>
+        </div>
+      </div>
+    `;
+
+    panel.querySelector('#nxv-upload-cancel').addEventListener('click', () => {
+      state.pendingFiles = [];
+      container.querySelector('#nxv-file-input').value = '';
+      renderUploadPanel(container);
+    });
+    panel.querySelector('#nxv-upload-confirm').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      try {
+        const subject = panel.querySelector('#nxv-upload-subject').value.trim() || 'General';
+        const category = panel.querySelector('#nxv-upload-category').value;
+        await store.putMany(state.pendingFiles, { subject, category });
+        const count = state.pendingFiles.length;
+        state.pendingFiles = [];
+        container.querySelector('#nxv-file-input').value = '';
+        renderUploadPanel(container);
+        notify(`${count} ${count === 1 ? 'file' : 'files'} saved to this browser’s Vault.`);
+        await refreshList(container);
+      } catch (error) {
+        notify(error.message || 'Could not save these files.');
+        button.disabled = false;
+        button.textContent = 'Add to Vault';
+      }
+    });
+  }
+
+  async function refreshList(container) {
+    const host = container.querySelector('#nxv-list');
+    if (!host) return;
+    host.innerHTML = '<div class="nxm-loading"><p>Loading your Vault…</p></div>';
+
+    try {
+      const files = await store.list();
+      const query = state.search.trim().toLowerCase();
+      const filtered = files.filter(file => {
+        const categoryMatch = state.category === 'All' || file.category === state.category;
+        const searchMatch = !query || `${file.name} ${file.subject || ''} ${file.category || ''}`.toLowerCase().includes(query);
+        return categoryMatch && searchMatch;
+      });
+
+      if (!filtered.length) {
+        host.innerHTML = `
+          <div class="nxm-empty">
+            <h3>${files.length ? 'No matching materials' : 'No materials yet'}</h3>
+            <p>${files.length ? 'Clear the search or choose another category.' : 'Upload a syllabus, lecture slides, or notes to get started.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      host.innerHTML = `<div class="nxv-list">${filtered.map(renderRow).join('')}</div>`;
+      wireRowActions(container, host);
+    } catch (error) {
+      host.innerHTML = `<div class="nxm-error"><p>${escape(error.message || 'Could not load Vault materials.')}</p></div>`;
+    }
+  }
+
+  function renderRow(file) {
+    return `
+      <article class="nxv-row" data-file-id="${escape(file.id)}">
+        <span class="nxv-row-icon" aria-hidden="true">▤</span>
+        <div class="nxv-row-main">
+          <strong>${escape(file.name)}</strong>
+          <small><span>${escape(file.subject || 'General')}</span> · <span>${escape(file.category || 'Notes')}</span> · <span>${prettySize(file.size || 0)}</span> · <span>${escape(dateLabel(file.createdAt))}</span></small>
+        </div>
+        <div class="nxv-row-actions">
+          <button type="button" data-action="open">Open</button>
+          <button type="button" data-action="download">Download</button>
+          <button type="button" data-action="edit">Edit</button>
+          <button type="button" class="nxv-danger" data-action="delete">Delete</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderEditRow(row, file) {
+    row.innerHTML = `
+      <span class="nxv-row-icon" aria-hidden="true">▤</span>
+      <div class="nxv-row-main nxv-edit-fields">
+        <strong>${escape(file.name)}</strong>
+        <label class="nxm-field">Subject<input type="text" data-edit-subject maxlength="120" value="${escape(file.subject || 'General')}"></label>
+        <label class="nxm-field">Category<select data-edit-category>${categories.map(category => `<option value="${escape(category)}" ${category === file.category ? 'selected' : ''}>${escape(category)}</option>`).join('')}</select></label>
+      </div>
+      <div class="nxv-row-actions"><button type="button" class="nx-primary-button" data-action="save-edit">Save</button><button type="button" data-action="cancel-edit">Cancel</button></div>
+    `;
+  }
+
+  function openFile(file, download) {
+    if (!file.blob) throw new Error('This file is unavailable in browser storage.');
+    const url = URL.createObjectURL(file.blob);
+    if (download) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      link.click();
+    } else {
+      const opened = window.open(url, '_blank');
+      if (opened) opened.opener = null;
+      else notify('Allow pop-ups to preview the file.');
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  function wireRowActions(container, host) {
+    host.addEventListener('click', async event => {
+      const button = event.target.closest('[data-action]');
+      const row = event.target.closest('[data-file-id]');
+      if (!button || !row) return;
+      const file = await store.get(row.dataset.fileId);
+      if (!file) return;
+
+      try {
+        switch (button.dataset.action) {
+          case 'open': openFile(file, false); break;
+          case 'download': openFile(file, true); break;
+          case 'edit': renderEditRow(row, file); break;
+          case 'cancel-edit': await refreshList(container); break;
+          case 'save-edit': {
+            await store.update(file.id, {
+              subject: row.querySelector('[data-edit-subject]').value.trim() || 'General',
+              category: row.querySelector('[data-edit-category]').value,
+            });
+            notify('Material updated.');
+            await refreshList(container);
+            break;
+          }
+          case 'delete':
+            if (!confirm(`Delete “${file.name}” from this browser’s Vault?`)) return;
+            await store.remove(file.id);
+            notify('Material deleted.');
+            await refreshList(container);
+            break;
+        }
+      } catch (error) {
+        notify(error.message || 'Could not update this material.');
+      }
+    });
+  }
+
+  window.NexoraVault = { mount };
 })();
