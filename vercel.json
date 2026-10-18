@@ -3,7 +3,6 @@
   "services": {
     "frontend": {
       "root": "dist",
-      "framework": "other",
       "outputDirectory": "."
     },
     "api": {
