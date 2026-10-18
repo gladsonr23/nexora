@@ -702,6 +702,8 @@ body,
 }
 
 .nx-chat-avatar { width: 60px; height: 60px; overflow: hidden; border-radius: 50%; background: var(--nx-surface-soft); }
+.nx-chat-avatar.is-placeholder { display: grid; place-items: center; border: 1px solid var(--nx-line); color: var(--nx-muted); }
+.nx-chat-avatar.is-placeholder .nx-icon { width: 30px; height: 30px; }
 .nx-chat-avatar .nx-companion-avatar-rendered,
 .nx-chat-avatar svg { display: block; width: 100%; height: 100%; }
 .nx-chat-identity .nx-kicker { margin: 0 0 3px; }

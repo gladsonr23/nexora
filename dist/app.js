@@ -639,7 +639,7 @@ document.body.innerHTML = `
                 <strong>Study Companion</strong>
                 <small>Choose a name and avatar only when you want to personalize it.</small>
               </span>
-              <button class="nx-secondary-button" id="nx-settings-customize-companion" type="button">Customize</button>
+              <button class="nx-secondary-button" id="nx-settings-customize-companion" type="button">Customize avatar</button>
             </div>
 
           </div>
@@ -1284,12 +1284,17 @@ function renderCompanionLauncher() {
   const oldChatAvatar = chatAvatar.querySelector('.nx-companion-avatar-rendered');
   if (oldChatAvatar && window.NexoraAvatar) window.NexoraAvatar.unmount(oldChatAvatar);
   chatAvatar.replaceChildren();
-  chatAvatar.hidden = !savedCompanionAvatar;
-  const chatAvatarGraphic = document.createElement('div');
-  chatAvatarGraphic.className = 'nx-companion-avatar-rendered';
-  chatAvatarGraphic.setAttribute('aria-hidden', 'true');
-  chatAvatar.append(chatAvatarGraphic);
-  renderCompanionImage(savedCompanionAvatar, chatAvatarGraphic);
+  chatAvatar.hidden = false;
+  chatAvatar.classList.toggle('is-placeholder', !savedCompanionAvatar);
+  if (savedCompanionAvatar) {
+    const chatAvatarGraphic = document.createElement('div');
+    chatAvatarGraphic.className = 'nx-companion-avatar-rendered';
+    chatAvatarGraphic.setAttribute('aria-hidden', 'true');
+    chatAvatar.append(chatAvatarGraphic);
+    renderCompanionImage(savedCompanionAvatar, chatAvatarGraphic);
+  } else {
+    chatAvatar.innerHTML = icon('user');
+  }
 }
 
 function setCompanionGender(gender) {
