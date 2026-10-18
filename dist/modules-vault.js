@@ -159,6 +159,7 @@
   async function refreshList(container) {
     const host = container.querySelector('#nxv-list');
     if (!host) return;
+    host.querySelectorAll('.nxv-delete-control').forEach(element => window.NexoraHoldButton?.unmount(element));
     host.innerHTML = '<div class="nxm-loading"><p>Loading your Vault…</p></div>';
 
     try {
@@ -182,6 +183,7 @@
 
       host.innerHTML = `<div class="nxv-list">${filtered.map(renderRow).join('')}</div>`;
       wireRowActions(container, host);
+      mountDeleteButtons(container, host);
     } catch (error) {
       host.innerHTML = `<div class="nxm-error"><p>${escape(error.message || 'Could not load Vault materials.')}</p></div>`;
     }
@@ -199,13 +201,14 @@
           <button type="button" data-action="open">Open</button>
           <button type="button" data-action="download">Download</button>
           <button type="button" data-action="edit">Edit</button>
-          <button type="button" class="nxv-danger" data-action="delete">Delete</button>
+          <span class="nxv-delete-control" data-delete-id="${escape(file.id)}"><button type="button" class="nxv-danger" data-action="delete">Delete</button></span>
         </div>
       </article>
     `;
   }
 
   function renderEditRow(row, file) {
+    row.querySelectorAll('.nxv-delete-control').forEach(element => window.NexoraHoldButton?.unmount(element));
     row.innerHTML = `
       <span class="nxv-row-icon" aria-hidden="true">▤</span>
       <div class="nxv-row-main nxv-edit-fields">
@@ -215,6 +218,40 @@
       </div>
       <div class="nxv-row-actions"><button type="button" class="nx-primary-button" data-action="save-edit">Save</button><button type="button" data-action="cancel-edit">Cancel</button></div>
     `;
+  }
+
+  function mountDeleteButtons(container, host) {
+    host.querySelectorAll('.nxv-delete-control').forEach(element => {
+      const remove = async () => {
+        try {
+          await store.remove(element.dataset.deleteId);
+          notify('Material deleted.');
+          await refreshList(container);
+        } catch (error) {
+          notify(error.message || 'Could not delete this material.');
+        }
+      };
+
+      if (!window.NexoraHoldButton?.mount) return;
+      window.NexoraHoldButton.mount(element, {
+        children: 'Hold to delete',
+        doneLabel: 'Deleted',
+        size: 'sm',
+        radius: 7,
+        holdTime: 1600,
+        releaseTime: 180,
+        fillDirection: 'right',
+        backgroundColor: 'var(--nx-surface)',
+        fillColor: 'var(--nx-error)',
+        textColor: 'var(--nx-error)',
+        fillTextColor: '#fff',
+        wave: true,
+        waveAmplitude: 3,
+        glow: false,
+        resetAfter: 0,
+        onHold: remove,
+      });
+    });
   }
 
   function openFile(file, download) {

@@ -98,6 +98,8 @@
 .nxv-row-actions button { padding: 6px 10px; border: 1px solid var(--nx-line); border-radius: 7px; background: var(--nx-surface); color: var(--nx-text); font-size: 11.5px; font-weight: 650; }
 .nxv-row-actions button:hover { background: var(--nx-surface-soft); }
 .nxv-row-actions .nxv-danger { color: var(--nx-error); border-color: var(--nx-error); }
+.nxv-delete-control { display: inline-flex; align-items: center; }
+.nxv-delete-control .hold-button { min-width: 70px; }
 .nxv-edit-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,220px); gap: 10px; align-items: end; }
 .nxv-edit-fields > strong { grid-column: 1 / -1; }
 @media (max-width: 640px) {

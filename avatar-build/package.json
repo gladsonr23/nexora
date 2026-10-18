@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/avatar-renderer.jsx src/glide-select.jsx src/spring-check.jsx --bundle --minify --format=iife --legal-comments=external --outdir=../dist --entry-names=[name]"
+    "build": "esbuild src/avatar-renderer.jsx src/glide-select.jsx src/spring-check.jsx src/hold-button.jsx --bundle --minify --format=iife --legal-comments=external --outdir=../dist --entry-names=[name]"
   },
   "dependencies": {
     "@gschoppe/avataaars": "2.4.3",
