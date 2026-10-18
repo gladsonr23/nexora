@@ -106,6 +106,7 @@
 #nx-module.nx-vault-active #nxv-list .nxm-empty p { margin-inline: auto; }
 #nx-module.nx-vault-active #nxv-list .nxv-list { text-align: left; }
 .nxv-list { border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); overflow: hidden; }
+.nxv-list:has(.glide-select__menu[data-state="open"]) { overflow: visible; }
 .nxv-row { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--nx-line); }
 .nxv-row:last-child { border-bottom: 0; }
 .nxv-row-icon { color: var(--nx-accent); }
