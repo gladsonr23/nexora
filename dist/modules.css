@@ -39,9 +39,10 @@
 .nxm-badge-muted { background: var(--nx-surface-soft); color: var(--nx-subtle); }
 
 /* ---------- Vault ---------- */
-.nxv-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.nxv-search { flex: 1; min-width: 220px; }
+.nxv-toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 14px 16px; align-items: center; margin-bottom: 12px; }
+.nxv-search { min-width: 0; }
 .nxv-search input { width: 100%; min-height: 42px; padding: 9px 14px; border: 1px solid var(--nx-line); border-radius: 9px; background: var(--nx-bg); color: var(--nx-text); font: inherit; }
+.nxv-toolbar > .nx-primary-button { min-height: 42px; justify-content: center; white-space: nowrap; }
 .nxv-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
 .nxv-chip { padding: 7px 13px; border: 1px solid var(--nx-line); border-radius: 20px; background: var(--nx-surface); color: var(--nx-muted); font-size: 12px; font-weight: 650; }
 .nxv-chip:hover { background: var(--nx-surface-soft); }
@@ -58,6 +59,21 @@
 .nxv-upload-actions { display: flex; gap: 10px; align-items: stretch; }
 .nxv-upload-actions button { min-height: 42px; }
 #nxv-upload-panel:not(:empty) { margin-top: 16px; }
+#nxv-list { min-width: 0; width: 100%; }
+#nxv-list .nxm-empty { justify-items: start; padding: clamp(28px,5vw,56px) 0; text-align: left; }
+#nxv-list .nxm-empty h3 { font-size: clamp(20px,2.4vw,26px); }
+/* Keep the browser-local legacy markup aligned if an older cached module is open. */
+.nxv-category-label { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.nxv-category-label select { min-height: 40px; min-width: 140px; padding: 7px 10px; border: 1px solid var(--nx-line); border-radius: 8px; background: var(--nx-bg); color: var(--nx-text); font: inherit; }
+.nxv-upload-form { display: grid; grid-column: 1 / -1; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px 12px; align-items: center; min-width: 0; }
+.nxv-upload-form > label { font-weight: 650; white-space: nowrap; }
+.nxv-upload-form input[type="file"] { min-width: 0; max-width: 100%; color: var(--nx-muted); }
+.nxv-upload-form .nx-primary-button { min-height: 42px; white-space: nowrap; }
+.nxv-upload-form .nx-form-help { grid-column: 1 / -1; margin: 0; max-width: 62ch; color: var(--nx-muted); font-size: 12px; line-height: 1.6; }
+.nxv-toolbar > #nxv-list { grid-column: 1 / -1; }
+.nx-empty-state { width: 100%; padding: clamp(28px,5vw,56px) 0; text-align: left; }
+.nx-empty-state h2 { margin: 0 0 8px; }
+.nx-empty-state p { margin: 0; color: var(--nx-muted); }
 .nxv-list { border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-surface); overflow: hidden; }
 .nxv-row { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--nx-line); }
 .nxv-row:last-child { border-bottom: 0; }
@@ -71,6 +87,13 @@
 .nxv-edit-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,220px); gap: 10px; align-items: end; }
 .nxv-edit-fields > strong { grid-column: 1 / -1; }
 @media (max-width: 640px) {
+  .nxv-toolbar { grid-template-columns: minmax(0,1fr); }
+  .nxv-toolbar > .nx-primary-button { width: 100%; }
+  .nxv-upload-form { grid-template-columns: minmax(0,1fr); }
+  .nxv-upload-form > *, .nxv-upload-form .nx-form-help { grid-column: 1; }
+  .nxv-upload-form .nx-primary-button { width: 100%; }
+  .nxv-category-label { justify-content: space-between; }
+  .nxv-category-label select { flex: 1; }
   .nxv-row { grid-template-columns: 1fr; }
   .nxv-row-actions { justify-content: flex-start; }
   .nxv-edit-fields { grid-template-columns: 1fr; }
