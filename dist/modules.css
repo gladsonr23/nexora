@@ -30,6 +30,23 @@
 .nxm-field input:focus, .nxm-field select:focus, .nxm-field textarea:focus {
   outline: none; border-color: var(--nx-ring); box-shadow: 0 0 0 3px var(--nx-accent-soft);
 }
+.nexora-native-select-hidden {
+  position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important;
+  margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important; border: 0 !important; opacity: 0 !important; pointer-events: none !important;
+}
+.nexora-glide-select-host { display: block; width: 100%; min-width: 0; }
+.nexora-glide-select-host .glide-select { display: block; width: 100%; min-width: 0; }
+.nexora-glide-select-host .glide-select__trigger {
+  display: flex; width: 100%; min-width: 0; height: 40px; justify-content: space-between;
+  box-sizing: border-box; padding: 0 10px; border: 1px solid var(--nx-line);
+  border-radius: 9px; background: var(--nx-bg); color: var(--nx-text); font: inherit; text-align: left;
+}
+.nexora-glide-select-host .glide-select__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nexora-glide-select-host .glide-select__menu { z-index: 100; max-width: min(360px, calc(100vw - 32px)); }
+.nx-pattern-filter > .nexora-glide-select-host { width: auto; min-width: 155px; }
+.nxv-category-label > .nexora-glide-select-host { width: auto; min-width: 140px; }
+.nx-companion-options .nexora-glide-select-host .glide-select__trigger { height: 40px; font-size: 12px; }
 .nxm-inline-error { color: var(--nx-error); font-size: 12px; margin: 6px 0 0; }
 .nxm-badge {
   display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700;

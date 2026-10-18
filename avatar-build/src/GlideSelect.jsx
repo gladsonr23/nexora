@@ -50,6 +50,7 @@ export default function GlideSelect({
   rememberPosition = true,
   disabled = false,
   ariaLabel = 'Select',
+  triggerId,
   className = ''
 }) {
   const items = options.map(normalizeOption);
@@ -270,6 +271,7 @@ export default function GlideSelect({
     >
       <button
         ref={triggerRef}
+        id={triggerId}
         type="button"
         role="combobox"
         aria-haspopup="listbox"

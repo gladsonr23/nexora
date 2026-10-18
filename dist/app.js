@@ -1313,6 +1313,7 @@ function syncCompanionOptions() {
   if (!companionDraft) return;
   Object.entries(companionSelects).forEach(([key, select]) => { companionDraft[key] = select.value; });
   renderCompanionImage(companionDraft, companionPreviewImage);
+  Object.values(companionSelects).forEach((select) => window.NexoraGlideSelect?.syncNative?.(select));
 }
 
 function openCompanionCustomizer() {
