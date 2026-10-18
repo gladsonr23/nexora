@@ -4,7 +4,9 @@ const {createPlayerFetch, fetchYouTubeLecture} = require('./youtube');
 
 test('retries the Innertube player with the iOS client when Android omits captions', async () => {
   const requests = [];
+  let firstRequest;
   const playerFetch = createPlayerFetch(async (url, init) => {
+    if (!firstRequest) firstRequest = {url, init};
     const body = JSON.parse(init.body);
     requests.push(body.context.client.clientName);
     return new Response(JSON.stringify(body.context.client.clientName === 'ANDROID'
@@ -12,9 +14,14 @@ test('retries the Innertube player with the iOS client when Android omits captio
       : {playabilityStatus: {status: 'OK'}, captions: {playerCaptionsTracklistRenderer: {captionTracks: [{languageCode: 'en'}]}}}), {status: 200});
   });
 
-  const response = await playerFetch({url: 'https://www.youtube.com/youtubei/v1/player?key=test', method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({context: {client: {clientName: 'ANDROID', clientVersion: '20.10.38'}}, videoId: 'kK7L2ISGucM'})});
+  const response = await playerFetch({url: 'https://www.youtube.com/youtubei/v1/player?key=test', method: 'POST', headers: {'Content-Type': 'application/json'}, userAgent: 'Nexora test agent', body: JSON.stringify({context: {client: {clientName: 'ANDROID', clientVersion: '20.10.38'}}, videoId: 'kK7L2ISGucM'})});
 
   assert.deepEqual(requests, ['ANDROID', 'IOS']);
+  assert.equal(firstRequest.init.headers['User-Agent'], 'Nexora test agent');
+  assert.equal(JSON.parse(firstRequest.init.body).context.client.gl, 'IN');
+  assert.equal(JSON.parse(firstRequest.init.body).context.client.hl, 'en');
+  assert.equal(JSON.parse(firstRequest.init.body).contentCheckOk, true);
+  assert.equal(JSON.parse(firstRequest.init.body).racyCheckOk, true);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).captions.playerCaptionsTracklistRenderer.captionTracks[0].languageCode, 'en');
 });

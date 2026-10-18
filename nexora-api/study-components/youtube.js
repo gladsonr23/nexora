@@ -42,47 +42,82 @@ function isNetworkFailure(error) {
   return isNetworkFailure(error.cause);
 }
 
-function responseHasCaptionTracks(response) {
-  return response.clone().json().then(playerJson => {
+async function inspectPlayerResponse(response) {
+  try {
+    const playerJson = await response.clone().json();
     const tracklist = playerJson.captions?.playerCaptionsTracklistRenderer || playerJson.playerCaptionsTracklistRenderer;
-    return Array.isArray(tracklist?.captionTracks) && tracklist.captionTracks.length > 0;
-  }).catch(() => false);
+    return {
+      hasTracks:Array.isArray(tracklist?.captionTracks) && tracklist.captionTracks.length > 0,
+      playabilityStatus:playerJson.playabilityStatus?.status || 'unknown',
+      reason:playerJson.playabilityStatus?.reason || '',
+    };
+  } catch (_) {
+    return {hasTracks:false, playabilityStatus:'invalid-json', reason:''};
+  }
 }
 
 function createPlayerFetch(fetchImpl = (...args) => fetch(...args)) {
   return async params => {
-    const primaryResponse = await fetchImpl(params.url, {
-      method:params.method,
-      headers:params.headers,
-      body:params.body,
-      signal:params.signal,
-    });
-    if (await responseHasCaptionTracks(primaryResponse)) return primaryResponse;
-
     let playerBody;
     try {
       playerBody = JSON.parse(params.body || '{}');
     } catch (_) {
-      return primaryResponse;
+      return fetchImpl(params.url, {
+        method:params.method,
+        headers:{...params.headers, ...(params.userAgent ? {'User-Agent':params.userAgent} : {})},
+        body:params.body,
+        signal:params.signal,
+      });
     }
     playerBody.context = playerBody.context || {};
     playerBody.context.client = {
       ...(playerBody.context.client || {}),
+      androidSdkVersion:playerBody.context.client?.androidSdkVersion || 35,
+      hl:playerBody.context.client?.hl || 'en',
+      gl:playerBody.context.client?.gl || 'IN',
+    };
+    playerBody.contentCheckOk = true;
+    playerBody.racyCheckOk = true;
+    const headers = {
+      ...params.headers,
+      ...(params.userAgent ? {'User-Agent':params.userAgent} : {}),
+      ...(params.lang ? {'Accept-Language':params.lang} : {}),
+    };
+    const primaryResponse = await fetchImpl(params.url, {
+      method:params.method,
+      headers,
+      body:JSON.stringify(playerBody),
+      signal:params.signal,
+    });
+    const primaryResult = await inspectPlayerResponse(primaryResponse);
+    if (primaryResult.hasTracks) return primaryResponse;
+    playerBody.context = playerBody.context || {};
+    const clientContext = {...(playerBody.context.client || {})};
+    delete clientContext.androidSdkVersion;
+    playerBody.context.client = {
+      ...clientContext,
       clientName:'IOS',
       clientVersion:'20.10.4',
+      hl:playerBody.context.client?.hl || 'en',
+      gl:playerBody.context.client?.gl || 'IN',
     };
     try {
       const fallbackResponse = await fetchImpl(params.url, {
         method:params.method,
-        headers:params.headers,
+        headers,
         body:JSON.stringify(playerBody),
         signal:params.signal,
       });
-      if (await responseHasCaptionTracks(fallbackResponse)) return fallbackResponse;
+      const fallbackResult = await inspectPlayerResponse(fallbackResponse);
+      if (fallbackResult.hasTracks) return fallbackResponse;
       console.warn('[youtube-transcript] iOS player fallback also returned no caption tracks', {
         videoId:playerBody.videoId,
         primaryStatus:primaryResponse.status,
         fallbackStatus:fallbackResponse.status,
+        primaryPlayability:primaryResult.playabilityStatus,
+        primaryReason:primaryResult.reason,
+        fallbackPlayability:fallbackResult.playabilityStatus,
+        fallbackReason:fallbackResult.reason,
       });
     } catch (error) {
       console.warn('[youtube-transcript] iOS player fallback request failed', {
