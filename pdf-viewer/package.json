@@ -1,0 +1,17 @@
+{
+  "name": "nexora-react-pdf-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-pdf": "^11.0.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

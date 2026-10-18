@@ -58,39 +58,20 @@
   function makePdf(){if(!currentNote||!window.NexoraPdf||!window.jspdf?.jsPDF)throw new Error('PDF export is not available. Reload Nexora and try again.');return window.NexoraPdf.createStudyGuidePdf(currentNote);}
   $('#nx-download-note')?.addEventListener('click',()=>{try{makePdf().save(window.NexoraPdf.filename(currentNote));}catch(error){if(typeof toast==='function')toast(error.message);}});
   const previewDialog=document.createElement('dialog');previewDialog.className='nx-pdf-preview';previewDialog.setAttribute('aria-label','Study guide PDF preview');
-  previewDialog.innerHTML='<div class="nx-pdf-preview-shell"><header class="nx-pdf-preview-toolbar"><strong class="nx-pdf-preview-title"></strong><div class="nx-pdf-preview-controls"><span class="nx-pdf-preview-count"></span><button type="button" data-pdf-zoom="out" aria-label="Zoom out">−</button><button type="button" data-pdf-zoom="in" aria-label="Zoom in">+</button><button type="button" data-pdf-close>Back to notes</button></div></header><div class="nx-pdf-preview-pages" role="region" aria-label="PDF pages" tabindex="0"><p class="nx-pdf-preview-message" role="status">Preparing preview…</p></div></div>';
+  previewDialog.innerHTML='<div class="nx-pdf-preview-shell"><header class="nx-pdf-preview-toolbar"><strong class="nx-pdf-preview-title"></strong><button type="button" data-pdf-close>Back to notes</button></header><div id="nx-pdf-react-root"></div></div>';
   document.body.append(previewDialog);
-  const previewPages=previewDialog.querySelector('.nx-pdf-preview-pages'),previewCount=previewDialog.querySelector('.nx-pdf-preview-count');
-  let previewDocument=null,previewScale=1,previewRendering=false;
-  async function renderPdfPreview(){
-    if(!previewDocument||previewRendering)return;
-    previewRendering=true;previewPages.replaceChildren();
-    try{
-      const availableWidth=Math.max(280,previewPages.clientWidth-48);
-      for(let pageNumber=1;pageNumber<=previewDocument.numPages;pageNumber++){
-        const page=await previewDocument.getPage(pageNumber),base=page.getViewport({scale:1});
-        const viewport=page.getViewport({scale:Math.min(availableWidth/base.width,1.35)*previewScale});
-        const canvas=document.createElement('canvas'),context=canvas.getContext('2d');
-        canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);canvas.dataset.page=String(pageNumber);canvas.setAttribute('aria-label',`Page ${pageNumber}`);
-        previewPages.append(canvas);await page.render({canvasContext:context,viewport}).promise;
-      }
-      previewPages.scrollTop=0;
-    }catch(error){previewPages.replaceChildren();const message=document.createElement('p');message.className='nx-pdf-preview-message';message.textContent='Could not render the PDF preview. You can still download the PDF.';previewPages.append(message);}
-    finally{previewRendering=false;}
-  }
+  let unmountPdfViewer=null;
   $('#nx-print-note')?.addEventListener('click',async()=>{
     try{
-      if(!window.pdfjsLib)throw new Error('The PDF preview library has not loaded. Reload Nexora and try again.');
       previewDialog.querySelector('.nx-pdf-preview-title').textContent=window.NexoraPdf.filename(currentNote);
-      previewPages.replaceChildren();const loading=document.createElement('p');loading.className='nx-pdf-preview-message';loading.textContent='Preparing preview…';previewPages.append(loading);
       previewDialog.showModal();
-      previewDocument=await window.pdfjsLib.getDocument({data:makePdf().output('arraybuffer')}).promise;
-      previewCount.textContent=`${previewDocument.numPages} page${previewDocument.numPages===1?'':'s'}`;previewScale=1;await renderPdfPreview();
-    }catch(error){previewDialog.close();if(typeof toast==='function')toast(error.message||'Could not open the PDF preview.');}
+      const viewer=await import('./pdf-viewer-react.js?v=1');
+      if(!previewDialog.open)return;
+      const data=new Uint8Array(makePdf().output('arraybuffer'));
+      unmountPdfViewer=viewer.mountPdfViewer(previewDialog.querySelector('#nx-pdf-react-root'),{data,fileName:window.NexoraPdf.filename(currentNote)});
+    }catch(error){if(previewDialog.open)previewDialog.close();if(typeof toast==='function')toast(error.message||'Could not open the PDF preview.');}
   });
   previewDialog.querySelector('[data-pdf-close]').addEventListener('click',()=>previewDialog.close());
-  previewDialog.querySelector('[data-pdf-zoom="in"]').addEventListener('click',()=>{if(previewScale<2){previewScale=Math.min(2,previewScale+.2);renderPdfPreview();}});
-  previewDialog.querySelector('[data-pdf-zoom="out"]').addEventListener('click',()=>{if(previewScale>.6){previewScale=Math.max(.6,previewScale-.2);renderPdfPreview();}});
-  previewDialog.addEventListener('close',()=>{previewDocument?.destroy();previewDocument=null;previewPages.replaceChildren();});
+  previewDialog.addEventListener('close',()=>{unmountPdfViewer?.();unmountPdfViewer=null;});
   $('#nx-save-note')?.addEventListener('click',async()=>{try{if(!currentNote||!window.NexoraVaultFileStore)throw new Error('Browser Vault is unavailable.');const file=new File([makePdf().output('blob')],window.NexoraPdf.filename(currentNote),{type:'application/pdf'});await window.NexoraVaultFileStore.putMany([file],{category:'Notes'});if(typeof toast==='function')toast('Study guide saved to this browser’s Vault.');}catch(error){if(typeof toast==='function')toast(error.message);}});
 })();
