@@ -727,9 +727,9 @@ document.body.innerHTML = `
 
   </dialog>
 
-  <button class="nx-companion-launcher is-unpersonalized" id="nx-companion-launcher" type="button" aria-label="Study Companion. Drag to move; click to open." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
+  <button class="nx-companion-launcher is-unpersonalized" id="nx-companion-launcher" type="button" aria-label="Customize avatar. Drag to move; click to personalize." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
     <span class="nx-companion-launcher-face" id="nx-companion-launcher-face" hidden></span>
-    <span class="nx-companion-launcher-label"><span>Study</span><span>Companion</span></span>
+    <span class="nx-companion-launcher-label"><span>Customize</span><span>Avatar</span></span>
   </button>
 
   <dialog class="nx-companion-dialog" id="nx-companion-dialog" aria-labelledby="nx-companion-title" aria-describedby="nx-companion-description">
@@ -1268,16 +1268,16 @@ function renderCompanionLauncher() {
     avatar.setAttribute('aria-hidden', 'true');
     companionLauncherFace.append(avatar);
     renderCompanionImage(savedCompanionAvatar, avatar);
-    companionLauncher.setAttribute('aria-label', `Edit ${nickname}, your study companion`);
+    companionLauncher.setAttribute('aria-label', `Customize ${nickname}'s avatar`);
   } else {
-    companionLauncherLabel.replaceChildren(...['Study', 'Companion'].map((word) => {
+    companionLauncherLabel.replaceChildren(...['Customize', 'Avatar'].map((word) => {
       const line = document.createElement('span');
       line.textContent = word;
       return line;
     }));
     companionLauncher.classList.add('is-unpersonalized');
     companionLauncherFace.hidden = true;
-    companionLauncher.setAttribute('aria-label', 'Study Companion. Drag to move; click to open.');
+    companionLauncher.setAttribute('aria-label', 'Customize avatar. Drag to move; click to personalize.');
   }
   $('#nx-chat-title').textContent = nickname;
   const chatAvatar = $('#nx-chat-avatar-art');
@@ -1379,7 +1379,7 @@ function enterCompanionAssistant() {
   location.hash = '#assistant';
 }
 
-$('#nx-companion-launcher').addEventListener('click', openCompanionChat);
+$('#nx-companion-launcher').addEventListener('click', openCompanionCustomizer);
 document.addEventListener('pointerdown', (event) => {
   if (!companionChat.classList.contains('is-open')) return;
   if (event.target.closest('#nx-companion-chat, #nx-companion-launcher')) return;

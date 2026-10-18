@@ -607,7 +607,7 @@ body,
   width: 86px;
   height: 86px;
   min-height: 86px;
-  padding: 10px 12px;
+  padding: 10px 6px;
   justify-items: center;
   align-content: center;
   border-right: 1px solid var(--nx-line);
