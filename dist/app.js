@@ -634,6 +634,14 @@ document.body.innerHTML = `
               <input class="nx-settings-switch" id="nx-dock-animation-control" type="checkbox" role="switch">
             </label>
 
+            <div class="nx-settings-companion">
+              <span>
+                <strong>Study Companion</strong>
+                <small>Choose a name and avatar only when you want to personalize it.</small>
+              </span>
+              <button class="nx-secondary-button" id="nx-settings-customize-companion" type="button">Customize</button>
+            </div>
+
           </div>
 
         </section>
@@ -719,9 +727,9 @@ document.body.innerHTML = `
 
   </dialog>
 
-  <button class="nx-companion-launcher" id="nx-companion-launcher" type="button" aria-label="Kattu, your study companion. Drag to move; click to customize." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
-    <span class="nx-companion-launcher-face" id="nx-companion-launcher-face">${icon('user')}</span>
-    <span class="nx-companion-launcher-label">Kattu</span>
+  <button class="nx-companion-launcher is-unpersonalized" id="nx-companion-launcher" type="button" aria-label="Study Companion. Drag to move; click to open." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
+    <span class="nx-companion-launcher-face" id="nx-companion-launcher-face" hidden></span>
+    <span class="nx-companion-launcher-label">Study Companion</span>
   </button>
 
   <dialog class="nx-companion-dialog" id="nx-companion-dialog" aria-labelledby="nx-companion-title" aria-describedby="nx-companion-description">
@@ -823,10 +831,10 @@ document.body.innerHTML = `
   <aside class="nx-companion-chat" id="nx-companion-chat" role="dialog" aria-modal="false" aria-labelledby="nx-chat-title" hidden>
     <header class="nx-companion-chat-head">
       <div class="nx-chat-avatar" id="nx-chat-avatar-art" aria-hidden="true"></div>
-      <div class="nx-chat-identity"><p class="nx-kicker">Study companion</p><h2 id="nx-chat-title">Kattu</h2><small id="nx-chat-source-status">No session sources</small></div>
+      <div class="nx-chat-identity"><p class="nx-kicker">Study companion</p><h2 id="nx-chat-title">Study Companion</h2><small id="nx-chat-source-status">No session sources</small></div>
       <button class="nx-companion-close" id="nx-chat-close" type="button" aria-label="Close study companion">×</button>
     </header>
-    <div class="nx-chat-tools"><span>Answers grounded in your Vault</span><button type="button" id="nx-chat-customize">Customize avatar</button></div>
+    <div class="nx-chat-tools"><span>Answers grounded in your Vault</span><a href="#settings">Manage in Settings</a></div>
     <div class="nx-chat-messages" id="nx-chat-messages" aria-live="polite"><p class="nx-chat-welcome">Hi, I’m your study companion. Ask me about the PDFs and notes in your Vault.</p></div>
     <div class="nx-chat-suggestions" id="nx-chat-suggestions"><button type="button" data-chat-prompt="Summarize the key ideas in my study materials">Summarize my materials</button><button type="button" data-chat-route="#quiz">Create a quiz</button><button type="button" data-chat-prompt="Analyze recurring exam patterns in my study materials">Analyze exam patterns</button></div>
     <form class="nx-chat-form" id="nx-chat-form"><label class="nx-sr-only" for="nx-chat-input">Ask about your study materials</label><textarea id="nx-chat-input" rows="2" maxlength="3000" placeholder="Ask about your study materials…" required></textarea><button class="nx-primary-button" type="submit">Send</button></form>
@@ -1194,6 +1202,10 @@ function loadCompanionAvatar() {
   try {
     const saved = JSON.parse(localStorage.getItem(companionStorageKey()) || 'null');
     if (!saved || !['male', 'female'].includes(saved.gender)) return null;
+    if (typeof saved.nickname === 'string' && saved.nickname.trim().toLowerCase() === 'kattu') {
+      localStorage.removeItem(companionStorageKey());
+      return null;
+    }
     const oldSkin = { '614335': 'DarkBrown', 'ae5d29': 'Tanned', 'd08b5b': 'Brown', 'edb98a': 'Light', 'ffdbb4': 'Pale' };
     const oldOutfit = { d97757: 'PastelOrange', '416b66': 'Blue03', '45556f': 'Blue02', '9079a8': 'Heather', d2a24f: 'PastelYellow' };
     const oldClothes = { hoodie: 'Hoodie', blazerAndSweater: 'BlazerSweater', shirtCrewNeck: 'ShirtCrewNeck', collarAndSweater: 'CollarSweater' };
@@ -1228,10 +1240,10 @@ function loadCompanionAvatar() {
 }
 
 function createDefaultCompanion() {
-  return { gender: 'female', skinColor: 'Light', topType: 'LongHairMiaWallace', hairColor: 'BrownDark', eyeType: 'Default', mouthType: 'Smile', accessoriesType: 'Blank', backdropType: 'Circle', backdropColor: 'PastelBlue', clotheType: 'BlazerSweater', clotheColor: 'Heather', nickname: 'Kattu', seed: randomCompanionSeed() };
+  return { gender: 'female', skinColor: 'Light', topType: 'LongHairMiaWallace', hairColor: 'BrownDark', eyeType: 'Default', mouthType: 'Smile', accessoriesType: 'Blank', backdropType: 'Circle', backdropColor: 'PastelBlue', clotheType: 'BlazerSweater', clotheColor: 'Heather', nickname: 'Study Companion', seed: randomCompanionSeed() };
 }
 
-let savedCompanionAvatar = loadCompanionAvatar() || createDefaultCompanion();
+let savedCompanionAvatar = loadCompanionAvatar();
 let companionDraft = null;
 
 function renderCompanionImage(config, element) {
@@ -1246,9 +1258,11 @@ function renderCompanionLauncher() {
   const existingAvatar = companionLauncherFace.querySelector('.nx-companion-avatar-rendered');
   if (existingAvatar && window.NexoraAvatar) window.NexoraAvatar.unmount(existingAvatar);
   companionLauncherFace.replaceChildren();
-  const nickname = savedCompanionAvatar?.nickname?.trim() || 'Kattu';
+  const nickname = savedCompanionAvatar?.nickname?.trim() || 'Study Companion';
   companionLauncherLabel.textContent = nickname;
   if (savedCompanionAvatar) {
+    companionLauncher.classList.remove('is-unpersonalized');
+    companionLauncherFace.hidden = false;
     const avatar = document.createElement('div');
     avatar.className = 'nx-companion-avatar-rendered';
     avatar.setAttribute('aria-hidden', 'true');
@@ -1256,14 +1270,16 @@ function renderCompanionLauncher() {
     renderCompanionImage(savedCompanionAvatar, avatar);
     companionLauncher.setAttribute('aria-label', `Edit ${nickname}, your study companion`);
   } else {
-    companionLauncherFace.innerHTML = icon('user');
-    companionLauncher.setAttribute('aria-label', 'Customize your AI companion');
+    companionLauncher.classList.add('is-unpersonalized');
+    companionLauncherFace.hidden = true;
+    companionLauncher.setAttribute('aria-label', 'Study Companion. Drag to move; click to open.');
   }
   $('#nx-chat-title').textContent = nickname;
   const chatAvatar = $('#nx-chat-avatar-art');
   const oldChatAvatar = chatAvatar.querySelector('.nx-companion-avatar-rendered');
   if (oldChatAvatar && window.NexoraAvatar) window.NexoraAvatar.unmount(oldChatAvatar);
   chatAvatar.replaceChildren();
+  chatAvatar.hidden = !savedCompanionAvatar;
   const chatAvatarGraphic = document.createElement('div');
   chatAvatarGraphic.className = 'nx-companion-avatar-rendered';
   chatAvatarGraphic.setAttribute('aria-hidden', 'true');
@@ -1365,10 +1381,7 @@ document.addEventListener('keydown', (event) => {
 $('#nx-companion-close').addEventListener('click', closeCompanionCustomizer);
 $('#nx-companion-skip').addEventListener('click', closeCompanionCustomizer);
 $('#nx-chat-close').addEventListener('click', () => closeCompanionChat(true));
-$('#nx-chat-customize').addEventListener('click', () => {
-  closeCompanionChat();
-  openCompanionCustomizer();
-});
+$('#nx-settings-customize-companion').addEventListener('click', openCompanionCustomizer);
 $('#nx-chat-input').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
@@ -1495,7 +1508,7 @@ $('#nx-companion-randomize').addEventListener('click', () => {
 });
 function saveCompanionAvatar() {
   syncCompanionOptions();
-  companionDraft.nickname = companionNickname.value.trim().slice(0, 20) || 'Kattu';
+  companionDraft.nickname = companionNickname.value.trim().slice(0, 20) || 'Study Companion';
   companionDraft.seed = companionDraft.seed || randomCompanionSeed();
   savedCompanionAvatar = { ...companionDraft };
   try {
@@ -1517,12 +1530,12 @@ $('#nx-companion-nickname').addEventListener('keydown', (event) => {
 $('#nx-companion-save').addEventListener('click', saveCompanionAvatar);
 
 window.addEventListener('nexora-auth-changed', () => {
-  savedCompanionAvatar = loadCompanionAvatar() || createDefaultCompanion();
+  savedCompanionAvatar = loadCompanionAvatar();
   renderCompanionLauncher();
 });
 if (window.NexoraAuth && window.NexoraAuth.ready) {
   window.NexoraAuth.ready.then(() => {
-    savedCompanionAvatar = loadCompanionAvatar() || createDefaultCompanion();
+    savedCompanionAvatar = loadCompanionAvatar();
     renderCompanionLauncher();
   });
 }

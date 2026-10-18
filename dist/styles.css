@@ -593,6 +593,16 @@ body,
   color: var(--nx-muted);
 }
 
+.nx-companion-launcher-face[hidden],
+.nx-chat-avatar[hidden] { display: none; }
+
+.nx-companion-launcher.is-unpersonalized {
+  width: 164px;
+  min-height: 44px;
+  padding: 10px 12px;
+  justify-items: center;
+}
+
 .nx-companion-launcher-face .nx-icon,
 .nx-companion-launcher-face .nx-companion-avatar-rendered,
 .nx-companion-launcher-face .nx-companion-avatar-rendered svg {
@@ -616,6 +626,13 @@ body,
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.nx-companion-launcher.is-unpersonalized .nx-companion-launcher-label {
+  max-width: none;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nx-companion-dialog {
@@ -688,7 +705,8 @@ body,
   font-size: 11px;
 }
 
-.nx-chat-tools button { padding: 6px 0; border: 0; background: transparent; color: var(--nx-accent); font: inherit; font-weight: 800; cursor: pointer; }
+.nx-chat-tools a { padding: 6px 0; color: var(--nx-accent); font-weight: 800; text-decoration: none; }
+.nx-chat-tools a:hover { text-decoration: underline; }
 .nx-chat-messages { display: flex; min-height: 0; padding: 24px 25px; overflow-y: auto; flex: 1; flex-direction: column; align-items: flex-start; gap: 12px; }
 
 .nx-chat-welcome,
@@ -1741,6 +1759,21 @@ body,
   font-weight: 450;
 }
 
+.nx-settings-companion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--nx-line);
+}
+
+.nx-settings-companion strong,
+.nx-settings-companion small { display: block; }
+.nx-settings-companion strong { font-size: 16px; font-weight: 650; }
+.nx-settings-companion small { margin-top: 4px; color: var(--nx-muted); font-size: 12px; }
+
 .nx-settings-preference {
   display: flex;
   align-items: center;
@@ -2057,6 +2090,8 @@ html.nx-dock-motion-off .nx-m3-dock-tabs .nx-m3-tab {
     flex-direction: column;
     gap: 15px;
   }
+
+  .nx-settings-companion { align-items: flex-start; flex-direction: column; gap: 14px; }
 
   .nx-topbar {
     min-height: 61px;
