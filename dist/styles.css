@@ -601,6 +601,7 @@ body,
   min-height: 44px;
   padding: 10px 12px;
   justify-items: center;
+  border-radius: 0;
 }
 
 .nx-companion-launcher-face .nx-icon,
