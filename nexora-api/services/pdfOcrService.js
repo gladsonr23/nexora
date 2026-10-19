@@ -3,6 +3,20 @@ const {langPath} = require('@tesseract.js-data/eng');
 const {getNvidiaOcrConfig, recognizeNvidiaOcrImage} = require('./nvidiaOcrService');
 
 const MAX_OCR_PAGES = 25;
+let pdfJsPromise;
+
+function loadPdfJs() {
+  if (!pdfJsPromise) {
+    pdfJsPromise = Promise.all([
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+      import('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+    ]).then(([pdfjs, worker]) => {
+      globalThis.pdfjsWorker = {WorkerMessageHandler: worker.WorkerMessageHandler};
+      return pdfjs;
+    });
+  }
+  return pdfJsPromise;
+}
 
 function pdfJsResourceOptions() {
   const projectRoot = path.resolve(__dirname, '..');
@@ -15,7 +29,7 @@ async function extractPdfWithOcr(bytes, {
   env = process.env,
 } = {}) {
   const [{createCanvas}, {createWorker}, {getDocument}] = await Promise.all([
-    import('@napi-rs/canvas'), import('tesseract.js'), import('pdfjs-dist/legacy/build/pdf.mjs'),
+    import('@napi-rs/canvas'), import('tesseract.js'), loadPdfJs(),
   ]);
   const task = getDocument({data: new Uint8Array(bytes), useSystemFonts: true, ...pdfJsResourceOptions()});
   const document = await task.promise;
