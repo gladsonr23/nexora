@@ -14,6 +14,7 @@ const { optionalAuth } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '16mb' }));
 

@@ -30,7 +30,42 @@ const VALID_DIFFICULTIES = [
   'hard',
 ];
 
-router.use(requireAuth);
+const BROWSER_QUIZ_WINDOW_MS = 10 * 60 * 1000;
+const BROWSER_QUIZ_LIMIT = 5;
+const browserQuizRequests = new Map();
+
+function allowBrowserVaultQuiz(req, res, next) {
+  const now = Date.now();
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  let bucket = browserQuizRequests.get(ip);
+
+  if (!bucket || now - bucket.startedAt >= BROWSER_QUIZ_WINDOW_MS) {
+    bucket = {startedAt: now, count: 0};
+    browserQuizRequests.set(ip, bucket);
+  }
+
+  if (bucket.count >= BROWSER_QUIZ_LIMIT) {
+    const retryAfter = Math.max(1, Math.ceil((BROWSER_QUIZ_WINDOW_MS - (now - bucket.startedAt)) / 1000));
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({error: 'Too many quizzes generated from this browser. Try again in a few minutes.'});
+  }
+
+  bucket.count += 1;
+  if (browserQuizRequests.size > 1000) {
+    for (const [key, entry] of browserQuizRequests) {
+      if (now - entry.startedAt >= BROWSER_QUIZ_WINDOW_MS) browserQuizRequests.delete(key);
+    }
+  }
+
+  return next();
+}
+
+function authorizeQuizGeneration(req, res, next) {
+  const isBrowserVaultRequest = Boolean(req.body?.material?.fileBase64);
+  if (!isBrowserVaultRequest) return requireAuth(req, res, next);
+  if (req.auth?.userId) return next();
+  return allowBrowserVaultQuiz(req, res, next);
+}
 
 function serializeQuiz(
   row,
@@ -89,6 +124,7 @@ function stripAnswers(
 
 router.post(
   '/generate',
+  authorizeQuizGeneration,
   async (req, res) => {
     const {
       materialId,
@@ -314,6 +350,10 @@ router.post(
     }
   }
 );
+
+// Browser-Vault generation is the only unauthenticated quiz route. Saved quiz
+// history and attempts continue to require a verified Clerk session.
+router.use(requireAuth);
 
 
 /* =========================================================

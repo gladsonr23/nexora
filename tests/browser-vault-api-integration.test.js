@@ -16,8 +16,8 @@ require.cache[authPath] = {
   filename: authPath,
   loaded: true,
   exports: {
-    requireAuth(req, res, next) { req.auth = {userId: 'test-user'}; next(); },
-    optionalAuth(req, res, next) { req.auth = {userId: 'test-user'}; next(); },
+    requireAuth(req, res) { return res.status(401).json({error: 'Please sign in to continue.'}); },
+    optionalAuth(req, res, next) { next(); },
   },
 };
 
@@ -100,6 +100,25 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
   assert.equal(quiz.questions[0].correctAnswer, 0);
   assert.ok(quiz.quizId);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM quizzes').get().count, 0);
+
+  const protectedResponse = await originalFetch(`${baseUrl}/api/quizzes`);
+  assert.equal(protectedResponse.status, 401);
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const retry = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({...shared, topic: 'All', questionType: 'mcq', difficulty: 'medium', questionCount: 1}),
+    });
+    assert.equal(retry.status, 201, await retry.text());
+  }
+
+  const limited = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({...shared, topic: 'All', questionType: 'mcq', difficulty: 'medium', questionCount: 1}),
+  });
+  assert.equal(limited.status, 429);
 });
 
 test.after(async () => {
