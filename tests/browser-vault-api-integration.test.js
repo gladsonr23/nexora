@@ -9,6 +9,7 @@ const express = require('../nexora-api/node_modules/express');
 const dataDir = path.join(os.tmpdir(), `nexora-local-vault-test-${randomUUID()}`);
 process.env.NEXORA_DATA_DIR = dataDir;
 process.env.GEMINI_API_KEY = 'test-key';
+process.env.NVIDIA_API_KEY = 'test-key';
 
 const authPath = require.resolve('../nexora-api/middleware/auth');
 require.cache[authPath] = {
@@ -23,17 +24,18 @@ require.cache[authPath] = {
 
 const scheduleRouter = require('../nexora-api/routes/schedule');
 const quizzesRouter = require('../nexora-api/routes/quizzes');
+const studyComponentsRouter = require('../nexora-api/routes/study-components');
 const {db} = require('../nexora-api/db/database');
 
-function makePdf() {
+function makePdf({scanned = false} = {}) {
   let source = '%PDF-1.4\n';
   const offsets = [0];
   const add = (number, body) => {
     offsets[number] = Buffer.byteLength(source, 'binary');
     source += `${number} 0 obj\n${body}\nendobj\n`;
   };
-  const text = 'Syllabus: Unit One. Networking basics, protocol layers, routing and switching concepts.';
-  const stream = `BT /F1 12 Tf 50 720 Td (${text}) Tj ET`;
+  const text = scanned ? '' : 'Syllabus: Unit One. Networking basics, protocol layers, routing and switching concepts.';
+  const stream = text ? `BT /F1 12 Tf 50 720 Td (${text}) Tj ET` : '';
   add(1, '<< /Type /Catalog /Pages 2 0 R >>');
   add(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
   add(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>');
@@ -46,12 +48,19 @@ function makePdf() {
 
 const server = express()
   .use(express.json({limit: '16mb'}))
+  .use('/api', studyComponentsRouter)
   .use('/api/schedule', scheduleRouter)
   .use('/api/quizzes', quizzesRouter)
   .listen(0, '127.0.0.1');
 
 const originalFetch = global.fetch;
-global.fetch = async (_url, options) => {
+global.fetch = async (url, options) => {
+  if (String(url).includes('ai.api.nvidia.com')) {
+    return new Response(JSON.stringify({data: [{index: 0, text_detections: [{text_prediction: {text: '1. Explain routing in a computer network and describe how routers choose a path. [5 marks]'}}]}]}), {
+      status: 200,
+      headers: {'content-type': 'application/json'},
+    });
+  }
   const request = JSON.parse(options.body);
   const prompt = request.systemInstruction?.parts?.[0]?.text || '';
   const result = prompt.includes('extracts structured academic syllabus')
@@ -101,10 +110,40 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
   assert.ok(quiz.quizId);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM quizzes').get().count, 0);
 
+  const scanned = {
+    ...shared,
+    materialId: 'scanned-vault-uuid',
+    material: {...shared.material, fileBase64: makePdf({scanned: true}).toString('base64')},
+  };
+  const patternResponse = await originalFetch(`${baseUrl}/api/pattern/extract?name=2025-Final.pdf&year=2025`, {
+    method: 'POST',
+    headers: {'content-type': 'application/pdf'},
+    body: makePdf({scanned: true}),
+  });
+  const patternText = await patternResponse.text();
+  assert.equal(patternResponse.status, 200, patternText);
+  const pattern = JSON.parse(patternText);
+  assert.equal(pattern.processing.scanned, true);
+  assert.deepEqual(pattern.processing.providers, ['nvidia']);
+  assert.match(pattern.paper.processing, /NVIDIA Nemotron OCR/);
+
+  const scannedScheduleResponse = await originalFetch(`${baseUrl}/api/schedule/generate`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({...scanned, examDate: date, availableHours: 2, studyDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}),
+  });
+  assert.equal(scannedScheduleResponse.status, 201, await scannedScheduleResponse.text());
+  const scannedQuizResponse = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({...scanned, topic: 'All', questionType: 'mcq', difficulty: 'medium', questionCount: 1}),
+  });
+  assert.equal(scannedQuizResponse.status, 201, await scannedQuizResponse.text());
+
   const protectedResponse = await originalFetch(`${baseUrl}/api/quizzes`);
   assert.equal(protectedResponse.status, 401);
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     const retry = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
       method: 'POST',
       headers: {'content-type': 'application/json'},

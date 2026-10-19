@@ -181,7 +181,7 @@
           </button>
         </div>
 
-        <p class="nxm-help">The PDF stays in your browser Vault. Its contents are sent to Nexora’s server for text extraction and AI plan generation.</p>
+        <p class="nxm-help">The PDF stays in your browser Vault. Nexora’s server extracts text and generates the plan; scanned pages may be sent to NVIDIA Nemotron OCR.</p>
 
       </div>
 

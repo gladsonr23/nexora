@@ -52,4 +52,7 @@ app.listen(PORT, () => {
   if (!process.env.GEMINI_API_KEY) {
     console.warn('  ⚠ GEMINI_API_KEY not set — AI generation endpoints will return 503 until it is.');
   }
+  if (!process.env.NVIDIA_API_KEY) {
+    console.warn('  ⚠ NVIDIA_API_KEY not set — scanned PDFs will use local Tesseract OCR fallback.');
+  }
 });

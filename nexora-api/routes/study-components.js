@@ -36,10 +36,10 @@ router.post('/pattern/extract',express.raw({type:'*/*',limit:'4mb'}),async(req,r
     const examYear=inferExamYear(filename,year);
     const pages=pdf?await extractPdfWithOcr(bytes):[{number:1,text:bytes.toString('utf8'),source:'selectable'}];
     if(!pages.some(page=>String(page.text||'').trim()))return res.status(422).json({error:'The OCR tools found no readable text. Try a clearer scan.'});
-    const paper=parseQuestionPaper(pages,{filename,year:examYear}),scanned=pages.some(page=>page.source==='ocr');
+    const paper=parseQuestionPaper(pages,{filename,year:examYear}),providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
     if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.'});
-    paper.id=require('node:crypto').randomUUID();paper.addedAt=new Date().toISOString();paper.processing=scanned?'Local Tesseract OCR':'Selectable PDF text';
-    return res.json({paper,processing:{scanned,providers:[],warnings:pages.flatMap(page=>page.warnings||[]),ocrAgreement:pages.filter(page=>page.source==='ocr').map(page=>page.agreement)}});
+    paper.id=require('node:crypto').randomUUID();paper.addedAt=new Date().toISOString();paper.processing=scanned?`${providers.map(provider=>provider==='nvidia'?'NVIDIA Nemotron OCR':'Local Tesseract').join(' + ')} OCR`:'Selectable PDF text';
+    return res.json({paper,processing:{scanned,providers,warnings:pages.flatMap(page=>page.warnings||[]),ocrAgreement:pages.filter(page=>page.source==='ocr').map(page=>page.agreement)}});
   }catch(error){return res.status(502).json({error:error?.message||'Could not extract this paper.'});}
 });
 module.exports=router;

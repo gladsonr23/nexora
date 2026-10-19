@@ -14,6 +14,7 @@ const {
   GeminiError
 } = require('../services/geminiService');
 const { extractPdfText } = require('../services/pdfService');
+const {extractPdfTextWithOcr} = require('../services/pdfOcrService');
 const { randomUUID } = require('node:crypto');
 const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
 
@@ -181,6 +182,7 @@ router.post(
         const localMaterial = await readBrowserVaultMaterial(
           {materialId, material: browserMaterial},
           extractPdfText,
+          extractPdfTextWithOcr,
         );
         extractedText = localMaterial.extractedText;
       } catch (error) {

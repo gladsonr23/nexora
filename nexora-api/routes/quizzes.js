@@ -14,6 +14,7 @@ const vault = require('../services/vaultService');
 const { requireAuth } = require('../middleware/auth');
 const { randomUUID } = require('node:crypto');
 const { extractPdfText } = require('../services/pdfService');
+const {extractPdfTextWithOcr} = require('../services/pdfOcrService');
 const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
 
 const router = express.Router();
@@ -185,6 +186,7 @@ router.post(
         const localMaterial = await readBrowserVaultMaterial(
           {materialId, material: browserMaterial},
           extractPdfText,
+          extractPdfTextWithOcr,
         );
         extractedText = localMaterial.extractedText;
         materialSubject = localMaterial.subject;

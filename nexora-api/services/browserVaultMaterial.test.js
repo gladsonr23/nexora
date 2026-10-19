@@ -60,3 +60,17 @@ test('returns a clear OCR message when PDF parsing finds no usable text', async 
     error => error instanceof BrowserVaultMaterialError && error.status === 422 && /OCR/i.test(error.message),
   );
 });
+
+test('uses the OCR fallback for a scanned browser Vault PDF', async () => {
+  let ocrBytes;
+  const result = await readBrowserVaultMaterial(
+    requestFor(),
+    async () => ({status: 'needs_ocr', text: ''}),
+    async bytes => {
+      ocrBytes = bytes;
+      return {status: 'complete', text: 'OCR extracted enough syllabus text for planning and quiz generation.'};
+    },
+  );
+  assert.deepEqual(ocrBytes, Buffer.from('%PDF-1.7 sample PDF bytes'));
+  assert.match(result.extractedText, /^OCR extracted/);
+});

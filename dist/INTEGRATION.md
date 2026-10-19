@@ -157,10 +157,16 @@ PDF file --(fetch)--> PDF.js renders each page to a <canvas>
                         --> POST /api/materials/:id/ocr { extractedText }
 ```
 
-The backend does **no OCR** — `POST /api/materials/:id/ocr` only validates
-the text (rejects near-empty results with a 422, so a failed OCR pass never
-gets silently marked as successful) and saves it, setting
+For the Vault's **Run OCR** button, OCR remains browser-side —
+`POST /api/materials/:id/ocr` only validates the recognized text (rejecting
+near-empty results with a 422) and saves it, setting
 `extraction_status = 'complete'` and `indexing_status = 'ready'`.
+
+Separately, the API uses NVIDIA Nemotron OCR for scanned pages submitted to
+Prof Pattern Detector, SyllabusToSchedule, and NoteToQuiz when
+`NVIDIA_API_KEY` is configured on the API server. Selectable text is extracted
+without sending it to NVIDIA; only rasterized pages that need OCR are sent.
+Local Tesseract remains the fallback if NVIDIA is not configured or fails.
 
 Two CDN scripts are needed in `index.html`, loaded before `ocr.js` (already
 added in the updated copy, in this exact order — `defer` preserves document
@@ -179,8 +185,7 @@ runs, without blocking page render):
 edit) to call the OCR endpoint with no body and a comment saying the backend
 would "send it to Gemini OCR" — that's been corrected to actually run
 `window.NexoraOCR.run(materialId, onProgress)` client-side and use the
-backend only to persist the final result, per the no-server-side-OCR
-requirement.
+backend only to persist the Vault flow's final result.
 
 `window.NexoraOCR.run(materialId, onProgress)`:
 - rejects a second concurrent call for the same material (`isRunning()`)

@@ -19,6 +19,10 @@
   const vaultPicker = $('#nx-pattern-vault-picker');
   const vaultFiles = $('#nx-pattern-vault-files');
   const vaultAdd = $('#nx-pattern-vault-add');
+  const formHelp = form?.querySelector('.nx-form-help');
+  const topicStatus = $('#nx-pattern-ai-status');
+  if (formHelp) formHelp.textContent = 'Select files together or add them in batches. Years are read from filenames automatically. Scanned pages may be sent securely from Nexora’s API server to NVIDIA Nemotron OCR; selectable PDF text is not sent to NVIDIA. Topic labels stay manual.';
+  if (topicStatus) topicStatus.textContent = 'Scanned pages may be sent to NVIDIA Nemotron OCR. Topic labels stay manual and are not sent to generative AI.';
   let aiTopics = new Map();
   let papers = [];
   let pendingFiles = [];
@@ -322,7 +326,7 @@
       }
       for (const [index,file] of files.entries()) {
         addButton.textContent=`Reading ${index+1} of ${files.length}…`;
-        progress.textContent=`Processing ${file.name} (${index+1}/${files.length}). Scanned pages are OCR-processed by Nexora's API server using local Tesseract; paper content is not sent to AI providers.`;
+        progress.textContent=`Processing ${file.name} (${index+1}/${files.length}). Scanned pages may be sent by Nexora's API server to NVIDIA Nemotron OCR; selectable text is not sent to NVIDIA. Topic labels remain manual.`;
         const inferredYear=file.name.match(/\b(20\d{2})\b/)?.[1] || '';
         const params = new URLSearchParams({name:file.name,year:yearInput.value.trim() || inferredYear});
         try {

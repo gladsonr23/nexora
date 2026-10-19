@@ -43,12 +43,20 @@ function decodeBrowserVaultMaterial(input) {
   return {materialId, filename, subject, bytes};
 }
 
-async function readBrowserVaultMaterial(input, extractPdfText) {
+async function readBrowserVaultMaterial(input, extractPdfText, extractScannedPdfText) {
   const material = decodeBrowserVaultMaterial(input);
-  const extracted = await extractPdfText(material.bytes);
-  const text = String(extracted?.text || '').replace(/\0/g, '').trim();
+  let extracted = await extractPdfText(material.bytes);
+  let text = String(extracted?.text || '').replace(/\0/g, '').trim();
+  if ((extracted?.status !== 'complete' || text.replace(/\s/g, '').length < 40) && typeof extractScannedPdfText === 'function') {
+    const scanned = await extractScannedPdfText(material.bytes);
+    const scannedText = String(scanned?.text || '').replace(/\0/g, '').trim();
+    if (scannedText.replace(/\s/g, '').length >= 40) {
+      extracted = {...scanned, status: 'complete'};
+      text = scannedText;
+    }
+  }
   if (extracted?.status !== 'complete' || text.replace(/\s/g, '').length < 40) {
-    throw new BrowserVaultMaterialError(422, 'Nexora could not read enough text from this PDF. Try a text-based copy or run OCR first.');
+    throw new BrowserVaultMaterialError(422, 'Nexora could not read enough text from this PDF, even after OCR. Try a clearer scan or a text-based copy.');
   }
   return {...material, bytes: undefined, extractedText: text};
 }
