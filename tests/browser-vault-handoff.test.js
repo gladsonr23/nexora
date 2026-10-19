@@ -42,6 +42,31 @@ test('planner and quiz material listing reads browser Vault records without an A
   }]);
 });
 
+test('Pattern Detector Vault selection lists only PYQs and Question Banks', async () => {
+  const shared = loadShared({
+    list: async () => [
+      {id: 'notes', name: 'Lecture notes.pdf', category: 'Notes', size: 200, type: 'application/pdf', createdAt: '2026-10-19T00:00:00.000Z'},
+      {id: 'pyq', name: '2025-final.pdf', category: 'PYQs', size: 300, type: 'application/pdf', createdAt: '2026-10-19T00:00:00.000Z'},
+      {id: 'bank', name: 'Unit questions.txt', category: 'Question Banks', size: 100, type: 'text/plain', createdAt: '2026-10-19T00:00:00.000Z'},
+      {id: 'other', name: 'photo.png', category: 'Question Banks', size: 100, type: 'image/png', createdAt: '2026-10-19T00:00:00.000Z'},
+    ],
+  });
+
+  const files = await shared.listVaultQuestionBankMaterials();
+  assert.deepEqual(files.map(file => file.materialId), ['pyq', 'bank']);
+  assert.deepEqual(files.map(file => file.category), ['PYQs', 'Question Banks']);
+});
+
+test('Pattern Detector saves newly uploaded papers under Question Banks', async () => {
+  let saved;
+  const shared = loadShared({putMany: async (files, metadata) => { saved = {files, metadata}; }});
+  const files = [{name: '2025-final.pdf'}];
+
+  await shared.saveQuestionBankFiles(files);
+  assert.equal(saved.files, files);
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.metadata)), {category: 'Question Banks'});
+});
+
 test('planner and quiz handoff serializes a selected local PDF for server-side extraction', async () => {
   const bytes = Buffer.from('%PDF-1.7 local syllabus');
   const shared = loadShared({

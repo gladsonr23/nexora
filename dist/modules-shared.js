@@ -169,6 +169,20 @@
     }));
   }
 
+  async function listVaultQuestionBankMaterials() {
+    const questionBankCategories = new Set(['pyqs', 'question banks']);
+    return (await listVaultMaterials()).filter(material =>
+      questionBankCategories.has(String(material.category || '').trim().toLowerCase()) &&
+      /\.(pdf|txt)$/i.test(material.filename)
+    );
+  }
+
+  async function saveQuestionBankFiles(files) {
+    const store = window.NexoraVaultFileStore;
+    if (!store) throw new Error('Browser Vault storage is unavailable. Refresh and try again.');
+    return store.putMany(files, {category: 'Question Banks'});
+  }
+
   async function vaultMaterialPayload(materialId) {
     const record = await window.NexoraVaultFileStore?.get(materialId);
     if (!record?.blob) throw new Error('That file is no longer in this browser’s Vault.');
@@ -237,6 +251,8 @@
     setActiveMaterial,
     takeActiveMaterial,
     listVaultMaterials,
+    listVaultQuestionBankMaterials,
+    saveQuestionBankFiles,
     vaultMaterialPayload,
     loadingBlock,
     errorBlock,

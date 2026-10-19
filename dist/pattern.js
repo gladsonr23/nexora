@@ -306,8 +306,8 @@
   }
 
   async function storeFilesInVault(files) {
-    if (!window.NexoraVaultFileStore) throw new Error('Vault file storage is unavailable. Reload Nexora and try again.');
-    await window.NexoraVaultFileStore.putMany(files);
+    if (!window.NexoraShared?.saveQuestionBankFiles) throw new Error('Vault file storage is unavailable. Reload Nexora and try again.');
+    await window.NexoraShared.saveQuestionBankFiles(files);
   }
 
   async function processFiles(files, {storeOriginals=false} = {}) {
@@ -354,13 +354,14 @@
     vaultFiles.replaceChildren();
     vaultAdd.disabled=true;
     try {
-      const files=(await window.NexoraVaultFileStore.list()).filter(file => /\.(pdf|txt)$/i.test(file.name));
-      if (!files.length) return vaultFiles.append(node('p','nx-pattern-empty','No PDF or TXT files are in Vault yet.'));
+      const files=await window.NexoraShared?.listVaultQuestionBankMaterials?.();
+      if (!files) throw new Error('Browser Vault storage is unavailable. Refresh and try again.');
+      if (!files.length) return vaultFiles.append(node('p','nx-pattern-empty','No PYQs or Question Banks are in Vault yet. Categorize question papers as PYQs or Question Banks in Vault to select them here.'));
       vaultAdd.disabled=false;
       files.forEach(file => {
         const label=node('label','nx-pattern-vault-option');
-        const checkbox=node('input'); checkbox.type='checkbox'; checkbox.value=file.id;
-        const copy=node('span'); copy.append(node('strong','',file.name),node('small','',`${Math.max(1,Math.round(file.size/1024))} KB · ${new Date(file.createdAt).toLocaleDateString('en-IN')}`));
+        const checkbox=node('input'); checkbox.type='checkbox'; checkbox.value=file.materialId;
+        const copy=node('span'); copy.append(node('strong','',file.filename),node('small','',`${file.category} · ${Math.max(1,Math.round(file.size/1024))} KB · ${new Date(file.createdAt).toLocaleDateString('en-IN')}`));
         label.append(checkbox,copy); vaultFiles.append(label);
       });
     } catch (problem) { vaultFiles.append(node('p','nx-form-error',problem.message || 'Could not read files from Vault.')); }
