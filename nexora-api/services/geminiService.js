@@ -1,8 +1,11 @@
 const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+  process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 const FALLBACK_MODEL =
   process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.8-flash';
+
+const BACKUP_MODEL =
+  process.env.GEMINI_BACKUP_MODEL || 'gemini-3.1-flash-lite';
 
 const API_KEY =
   process.env.GEMINI_API_KEY;
@@ -45,7 +48,7 @@ function sleep(ms) {
  * Sends a request to one Gemini model.
  *
  * Primary model:
- *   gemini-3.1-flash-lite
+ *   gemini-3.5-flash-lite
  *
  * Fallback model:
  *   gemini-3.8-flash
@@ -54,7 +57,14 @@ async function requestGemini(
   model,
   systemPrompt,
   userPrompt,
-  {fetchImpl = globalThis.fetch, timeoutMs = GEMINI_REQUEST_TIMEOUT_MS, inlineData} = {}
+  {
+    fetchImpl = globalThis.fetch,
+    timeoutMs = GEMINI_REQUEST_TIMEOUT_MS,
+    inlineData,
+    maxRetries = 1,
+    retryBaseMs = 500,
+    retryRandom = Math.random,
+  } = {}
 ) {
   const url =
     `${BASE_URL}/${model}:generateContent?key=${API_KEY}`;
@@ -93,7 +103,7 @@ async function requestGemini(
    * 0 = first request
    * 1 = one retry
    */
-  const MAX_RETRIES = 1;
+  const MAX_RETRIES = maxRetries;
 
 
   for (
@@ -193,8 +203,11 @@ async function requestGemini(
       attempt < MAX_RETRIES
     ) {
 
-      const delay =
-        500 * Math.pow(2, attempt);
+      const retryAfter = Number(response.headers?.get?.('retry-after'));
+      const exponentialDelay = retryBaseMs * Math.pow(2, attempt);
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(5000, retryAfter * 1000)
+        : Math.min(5000, exponentialDelay + Math.floor(retryRandom() * 250));
 
 
       console.warn(
@@ -235,8 +248,9 @@ async function requestGemini(
  * Primary:
  *   gemini-3.1-flash-lite
  *
- * Fallback:
+ * Fallbacks:
  *   gemini-3.8-flash
+ *   gemini-3.1-flash-lite
  *
  * The fallback is only used when the
  * primary model has a temporary provider
@@ -292,42 +306,44 @@ async function callGemini(
       ].includes(primaryError.status);
 
 
-    if (
-      !shouldFallback ||
-      FALLBACK_MODEL === GEMINI_MODEL
-    ) {
-
+    if (!shouldFallback) {
       throw primaryError;
-
     }
 
+    const errors = [primaryError];
+    const fallbackModels = [...new Set([FALLBACK_MODEL, BACKUP_MODEL])]
+      .filter(model => model && model !== GEMINI_MODEL);
 
-    console.warn(
-      `[geminiService] ${GEMINI_MODEL} is unavailable ` +
-      `(${primaryError.status}). ` +
-      `Switching to fallback model: ${FALLBACK_MODEL}`
+    for (const model of fallbackModels) {
+      console.warn(
+        `[geminiService] ${GEMINI_MODEL} is unavailable (${primaryError.status}); trying ${model}`
+      );
+      try {
+        return await requestGemini(
+          model,
+          systemPrompt,
+          userPrompt,
+          {...requestOptions, maxRetries: 0}
+        );
+      } catch (fallbackError) {
+        errors.push(fallbackError);
+      }
+    }
+
+    if (errors.every(error => error.code === 'TIMEOUT')) throw primaryError;
+
+    const overloaded = errors.some(error => error.status === 503);
+    const rateLimited = errors.some(error => error.status === 429);
+    const unavailableError = new GeminiError(
+      overloaded
+        ? 'Gemini is temporarily overloaded. We tried the available backup models; please try again shortly.'
+        : rateLimited
+          ? 'Gemini is temporarily rate-limiting requests. Please wait briefly and try again.'
+          : 'Gemini could not complete this request. Please try again shortly.',
+      overloaded ? 'TEMPORARILY_UNAVAILABLE' : rateLimited ? 'RATE_LIMITED' : 'API_ERROR'
     );
-
-
-    try {
-
-      return await requestGemini(
-        FALLBACK_MODEL,
-        systemPrompt,
-        userPrompt,
-        requestOptions
-      );
-
-    } catch (fallbackError) {
-
-      throw new GeminiError(
-        `Primary model ${GEMINI_MODEL} and fallback model ` +
-        `${FALLBACK_MODEL} both failed. ` +
-        `Last error: ${fallbackError.message}`,
-        'API_ERROR'
-      );
-
-    }
+    unavailableError.status = overloaded ? 503 : rateLimited ? 429 : (errors.at(-1)?.status || 502);
+    throw unavailableError;
   }
 }
 

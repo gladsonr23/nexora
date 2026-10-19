@@ -340,6 +340,8 @@ router.post(
         const status =
           err.code === 'NO_API_KEY'
             ? 503
+            : [429, 503].includes(err.status)
+              ? err.status
             : 502;
 
         return res.status(status).json({
