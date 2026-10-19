@@ -192,7 +192,7 @@ test('Pattern Detector reports NVIDIA OCR failures promptly without starting loc
     });
     const payload = await response.json();
     assert.equal(response.status, 502);
-    assert.match(payload.error, /NVIDIA OCR failed: OCR temporarily unavailable/);
+    assert.match(payload.error, /NVIDIA OCR failed \(HTTP 503\): OCR temporarily unavailable/);
   } finally {
     failNvidia = false;
   }

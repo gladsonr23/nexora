@@ -51,7 +51,26 @@ test('sends multiple scanned pages in one NVIDIA request and returns text in pag
 
   assert.equal(request.input.length, 2);
   assert.match(request.input[0].url, /^data:image\/jpeg;base64,/);
+  assert.deepEqual(request.merge_levels, ['paragraph', 'paragraph']);
   assert.deepEqual(pages, ['First page', 'Second page']);
+});
+
+test('formats structured NVIDIA validation errors into readable diagnostics', async () => {
+  await assert.rejects(
+    recognizeNvidiaOcrImages([Buffer.from('page one'), Buffer.from('page two')], {
+      apiKey: 'test-secret',
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: {type: 'invalid_request_error'},
+        detail: [{msg: 'merge_levels must contain one item per image'}, {msg: 'received 1 for 2 images'}],
+      }), {status: 422}),
+    }),
+    error => error instanceof NvidiaOcrError &&
+      /HTTP 422/.test(error.message) &&
+      /merge_levels must contain one item per image/.test(error.message) &&
+      /received 1 for 2 images/.test(error.message) &&
+      !error.message.includes('[object Object]') &&
+      !error.message.includes('test-secret'),
+  );
 });
 
 test('fails clearly when the NVIDIA API key is missing', async () => {

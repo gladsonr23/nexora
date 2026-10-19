@@ -33,6 +33,18 @@ function parseNvidiaOcrText(payload) {
   return parseNvidiaOcrPages(payload).filter(Boolean).join('\n');
 }
 
+function errorText(value, depth = 0) {
+  if (depth > 5 || value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  if (Array.isArray(value)) return value.map(item => errorText(item, depth + 1)).filter(Boolean).join('; ');
+  if (typeof value !== 'object') return '';
+  for (const key of ['message', 'msg', 'detail', 'error', 'title', 'reason']) {
+    const message = errorText(value[key], depth + 1);
+    if (message) return message;
+  }
+  return '';
+}
+
 async function recognizeNvidiaOcrImages(imageBytesList, {
   apiKey = getNvidiaOcrConfig().apiKey,
   endpoint = getNvidiaOcrConfig().endpoint,
@@ -57,7 +69,7 @@ async function recognizeNvidiaOcrImages(imageBytesList, {
       },
       body: JSON.stringify({
         input: imageBytesList.map(imageBytes => ({type: 'image_url', url: `data:${mimeType};base64,${imageBytes.toString('base64')}`})),
-        merge_levels: ['paragraph'],
+        merge_levels: imageBytesList.map(() => 'paragraph'),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -68,8 +80,9 @@ async function recognizeNvidiaOcrImages(imageBytesList, {
   let payload;
   try { payload = await response.json(); } catch (_) { payload = null; }
   if (!response.ok) {
-    const message = String(payload?.detail || payload?.message || payload?.error || '').trim();
-    throw new NvidiaOcrError(message ? `NVIDIA OCR failed: ${message}` : `NVIDIA OCR returned HTTP ${response.status}.`, response.status >= 400 && response.status < 500 ? 422 : 502);
+    const message = errorText(payload?.detail) || errorText(payload?.message) || errorText(payload?.error) || errorText(payload);
+    const safeMessage = message.replaceAll(apiKey, '[redacted]').slice(0, 500);
+    throw new NvidiaOcrError(safeMessage ? `NVIDIA OCR failed (HTTP ${response.status}): ${safeMessage}` : `NVIDIA OCR returned HTTP ${response.status}.`, response.status >= 400 && response.status < 500 ? 422 : 502);
   }
 
   return parseNvidiaOcrPages(payload, imageBytesList.length);
