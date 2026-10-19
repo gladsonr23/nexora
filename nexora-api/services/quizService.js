@@ -8,7 +8,7 @@ function buildSystemPrompt(questionType) {
     term_check: `{ "questions": [ { "term": "string", "expectedDefinition": "string" } ] }`,
   };
 
-  return `You are an assistant that generates exam-style practice questions strictly from the study material text provided by the user.
+  return `You are an assistant that generates exam-style practice questions strictly from the study material text or attached PDF provided by the user.
 Respond with ONLY valid JSON matching this exact shape, and nothing else (no markdown, no commentary, no UI markup of any kind):
 ${shapes[questionType]}
 Rules:
@@ -20,22 +20,27 @@ Rules:
 }
 
 /** Calls Gemini to generate raw questions, then validates/cleans the result. */
-async function generateQuiz({ extractedText, topic, questionType, difficulty, questionCount }) {
-  const promptText = getTextForPrompt(extractedText, { maxChars: 18000, topic });
+async function generateQuiz({ extractedText, pdfBytes, filename, topic, questionType, difficulty, questionCount }) {
+  const promptText = pdfBytes ? '' : getTextForPrompt(extractedText, { maxChars: 18000, topic });
 
-  if (!promptText || promptText.trim().length < 30) {
+  if (!pdfBytes && (!promptText || promptText.trim().length < 30)) {
     const err = new Error('No usable extracted text is available for this material yet.');
     err.code = 'NO_TEXT';
     throw err;
   }
 
-  const userPrompt = `Study material text:\n\n${promptText}\n\n---\nGenerate ${questionCount} ${difficulty} difficulty ${questionType.replace(
+  const sourcePrompt = pdfBytes
+    ? `Read the attached study-material PDF${filename ? ` (${String(filename).replace(/[\r\n\0]/g, ' ').slice(0, 160)})` : ''}. Use its contents as the only source for questions.`
+    : `Study material text:\n\n${promptText}`;
+  const userPrompt = `${sourcePrompt}\n\n---\nGenerate ${questionCount} ${difficulty} difficulty ${questionType.replace(
     '_',
     ' '
   )} questions${topic ? ` focused on the topic "${topic}"` : ''}.`;
 
   const systemPrompt = buildSystemPrompt(questionType);
-  const raw = await generateJson(systemPrompt, userPrompt);
+  const raw = await generateJson(systemPrompt, userPrompt, pdfBytes
+    ? {inlineData: {mimeType: 'application/pdf', data: Buffer.from(pdfBytes).toString('base64')}}
+    : {});
 
   const validated = validateQuestions(raw?.questions, questionType);
 

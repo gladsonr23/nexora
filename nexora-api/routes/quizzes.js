@@ -14,8 +14,7 @@ const vault = require('../services/vaultService');
 const { requireAuth } = require('../middleware/auth');
 const { randomUUID } = require('node:crypto');
 const { extractPdfText } = require('../services/pdfService');
-const {extractPdfTextWithOcr} = require('../services/pdfOcrService');
-const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
+const {decodeBrowserVaultMaterial} = require('../services/browserVaultMaterial');
 
 const router = express.Router();
 
@@ -182,14 +181,18 @@ router.post(
        */
       let materialSubject = 'Study';
       let extractedText;
+      let pdfBytes;
       if (browserMaterial) {
-        const localMaterial = await readBrowserVaultMaterial(
-          {materialId, material: browserMaterial},
-          extractPdfText,
-          extractPdfTextWithOcr,
-        );
-        extractedText = localMaterial.extractedText;
+        const localMaterial = decodeBrowserVaultMaterial({materialId, material: browserMaterial});
         materialSubject = localMaterial.subject;
+        const pdfReadStartedAt = Date.now();
+        const extracted = await extractPdfText(localMaterial.bytes);
+        if (extracted.status === 'complete' && extracted.text.replace(/\s/g, '').length >= 40) {
+          extractedText = extracted.text;
+        } else {
+          pdfBytes = localMaterial.bytes;
+        }
+        console.info(`[quizzes] Browser Vault PDF inspected in ${Date.now() - pdfReadStartedAt}ms; mode=${pdfBytes ? 'Gemini PDF' : 'extracted text'}`);
       } else {
         const material = await vault.getMaterial(
           req.auth.userId,
@@ -213,9 +216,13 @@ router.post(
         `for user ${req.auth?.userId || 'browser Vault'}`
       );
 
-      const questions =
-        await generateQuiz({
+      const generationStartedAt = Date.now();
+      let questions;
+      try {
+        questions = await generateQuiz({
           extractedText,
+          pdfBytes,
+          filename: browserMaterial?.filename,
           topic:
             topic && topic !== 'All'
               ? topic
@@ -224,6 +231,11 @@ router.post(
           difficulty,
           questionCount: count,
         });
+        console.info(`[quizzes] Quiz generation completed in ${Date.now() - generationStartedAt}ms`);
+      } catch (error) {
+        console.warn(`[quizzes] Quiz generation failed after ${Date.now() - generationStartedAt}ms (${error.code || error.status || 'error'})`);
+        throw error;
+      }
 
       if (browserMaterial) {
         const title = `${materialSubject} ${topic && topic !== 'All' ? `· ${topic} ` : ''}Quiz`.trim();

@@ -55,6 +55,7 @@ const server = express()
 
 const originalFetch = global.fetch;
 let nvidiaRequests = 0;
+let geminiPdfRequests = 0;
 let schedulePdfRequest;
 global.fetch = async (url, options) => {
   if (String(url).includes('ai.api.nvidia.com')) {
@@ -67,7 +68,10 @@ global.fetch = async (url, options) => {
   const request = JSON.parse(options.body);
   const parts = request.contents?.[0]?.parts || [];
   const inlinePdf = parts.find(part => part.inlineData?.mimeType === 'application/pdf');
-  if (inlinePdf) schedulePdfRequest = inlinePdf.inlineData;
+  if (inlinePdf) {
+    geminiPdfRequests += 1;
+    schedulePdfRequest = inlinePdf.inlineData;
+  }
   const prompt = request.systemInstruction?.parts?.[0]?.text || '';
   const result = prompt.includes('extracts structured academic syllabus')
     ? {subject: 'Networks', units: [{unit: 'Unit One', topics: ['Networking basics', 'Protocol layers']}], deadlines: []}
@@ -134,6 +138,7 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
   assert.match(pattern.paper.processing, /NVIDIA Nemotron OCR/);
 
   const nvidiaRequestsBeforeSchedule = nvidiaRequests;
+  const geminiPdfRequestsBeforeSchedule = geminiPdfRequests;
   const scannedScheduleResponse = await originalFetch(`${baseUrl}/api/schedule/generate`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
@@ -141,13 +146,18 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
   });
   assert.equal(scannedScheduleResponse.status, 201, await scannedScheduleResponse.text());
   assert.equal(nvidiaRequests, nvidiaRequestsBeforeSchedule, 'scanned planner PDFs should skip per-page NVIDIA OCR');
+  assert.equal(geminiPdfRequests, geminiPdfRequestsBeforeSchedule + 1, 'scanned planner should send the PDF directly to Gemini');
   assert.deepEqual(schedulePdfRequest, {mimeType: 'application/pdf', data: scanned.material.fileBase64});
+  const geminiPdfRequestsBeforeQuiz = geminiPdfRequests;
   const scannedQuizResponse = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
     body: JSON.stringify({...scanned, topic: 'All', questionType: 'mcq', difficulty: 'medium', questionCount: 1}),
   });
   assert.equal(scannedQuizResponse.status, 201, await scannedQuizResponse.text());
+  assert.equal(nvidiaRequests, nvidiaRequestsBeforeSchedule, 'scanned Vault quiz PDFs should skip per-page NVIDIA OCR');
+  assert.equal(geminiPdfRequests, geminiPdfRequestsBeforeQuiz + 1, 'scanned quiz should send the PDF directly to Gemini');
+  assert.deepEqual(schedulePdfRequest, {mimeType: 'application/pdf', data: scanned.material.fileBase64});
 
   const protectedResponse = await originalFetch(`${baseUrl}/api/quizzes`);
   assert.equal(protectedResponse.status, 401);

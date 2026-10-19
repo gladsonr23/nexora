@@ -67,7 +67,7 @@
           <button type="button" class="nx-primary-button" id="nxq-generate">${icon('quiz')}<span>Generate Quiz</span></button>
         </div>
       </div>
-      <p class="nxm-help">The PDF stays in your browser Vault. Nexora’s server extracts text and generates the quiz; scanned pages may be sent to NVIDIA Nemotron OCR.</p>
+      <p class="nxm-help">Your PDF stays in your browser Vault. Scanned PDFs are sent securely to Gemini to read the material and create your quiz.</p>
       <div id="nxq-status"></div>
       <div id="nxq-play"></div>
     `;
@@ -85,21 +85,25 @@
     const playEl = container.querySelector('#nxq-play');
     playEl.innerHTML = '';
 
-    const stages = ['Reading notes…', 'Finding concepts…', 'Generating questions…', 'Validating quiz…'];
-    let stageIdx = 0;
-    statusEl.innerHTML = loadingBlock(stages[0]);
-    const stageTimer = setInterval(() => {
-      stageIdx = Math.min(stageIdx + 1, stages.length - 1);
-      statusEl.innerHTML = loadingBlock(stages[stageIdx]);
-    }, 1400);
+    statusEl.innerHTML = loadingBlock('Preparing your study material…');
+    let slowWaitTimer;
+    let longWaitTimer;
 
     try {
       const materialPayload = await vaultMaterialPayload(materialId);
+      statusEl.innerHTML = loadingBlock('Generating your quiz…');
+      slowWaitTimer = setTimeout(() => {
+        statusEl.innerHTML = loadingBlock('Gemini is reading the material and writing your questions…');
+      }, 15000);
+      longWaitTimer = setTimeout(() => {
+        statusEl.innerHTML = loadingBlock('Gemini is still processing this file. Larger scanned PDFs can take a little longer.');
+      }, 60000);
       const quiz = await api('/api/quizzes/generate', {
         method: 'POST',
         body: JSON.stringify({ ...materialPayload, topic, questionType, difficulty, questionCount }),
       });
-      clearInterval(stageTimer);
+      clearTimeout(slowWaitTimer);
+      clearTimeout(longWaitTimer);
       statusEl.innerHTML = '';
 
       state.quiz = quiz;
@@ -118,7 +122,8 @@
 
       renderQuestion(container);
     } catch (err) {
-      clearInterval(stageTimer);
+      clearTimeout(slowWaitTimer);
+      clearTimeout(longWaitTimer);
       statusEl.innerHTML = errorBlock(err.message || 'Quiz generation failed.');
       statusEl.querySelector('.nxm-retry')?.addEventListener('click', () => generateQuiz(container));
     }
