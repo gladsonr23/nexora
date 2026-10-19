@@ -14,6 +14,7 @@
 }
 .nxm-empty h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 18px; color: var(--nx-text); }
 .nxm-empty p, .nxm-error p { margin: 0; font-size: 13px; max-width: 46ch; }
+.nxm-help { margin: 12px 0; color: var(--nx-muted); font-size: 12px; line-height: 1.55; }
 .nxm-spinner {
   width: 26px; height: 26px; border-radius: 50%;
   border: 3px solid var(--nx-line); border-top-color: var(--nx-accent);
@@ -203,3 +204,4 @@
 .nxq-review-tag-correct { background: rgba(28,138,76,.12); color: #1c8a4c; }
 .nxq-review-tag-incorrect { background: rgba(183,53,22,.12); color: var(--nx-error); }
 .nxq-actions-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+

@@ -155,6 +155,40 @@
     return id;
   }
 
+  async function listVaultMaterials() {
+    const store = window.NexoraVaultFileStore;
+    if (!store) throw new Error('Browser Vault storage is unavailable. Refresh and try again.');
+    return (await store.list()).map(record => ({
+      materialId: record.id,
+      filename: record.name,
+      subject: record.subject || 'General',
+      category: record.category || 'Notes',
+      size: record.size || record.blob?.size || 0,
+      type: record.type || record.blob?.type || 'application/pdf',
+      createdAt: record.createdAt
+    }));
+  }
+
+  async function vaultMaterialPayload(materialId) {
+    const record = await window.NexoraVaultFileStore?.get(materialId);
+    if (!record?.blob) throw new Error('That file is no longer in this browser’s Vault.');
+    if (record.blob.size > 12_000_000) throw new Error('Choose a PDF smaller than 12 MB.');
+    const bytes = new Uint8Array(await record.blob.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return {
+      materialId: record.id,
+      material: {
+        filename: record.name,
+        subject: record.subject || 'General',
+        fileBase64: btoa(binary)
+      }
+    };
+  }
+
   function loadingBlock(message) {
     return `
       <div class="nxm-loading">
@@ -202,9 +236,12 @@
     weekdayName,
     setActiveMaterial,
     takeActiveMaterial,
+    listVaultMaterials,
+    vaultMaterialPayload,
     loadingBlock,
     errorBlock,
     emptyBlock,
     API_BASE,
   };
 })();
+

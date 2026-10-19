@@ -13,6 +13,9 @@ const {
 const {
   GeminiError
 } = require('../services/geminiService');
+const { extractPdfText } = require('../services/pdfService');
+const { randomUUID } = require('node:crypto');
+const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
 
 const router = express.Router();
 
@@ -92,6 +95,7 @@ router.post(
   async (req, res) => {
     const {
       materialId,
+      material: browserMaterial,
       examDate,
       availableHours,
       studyDays
@@ -171,33 +175,26 @@ router.post(
         });
     }
 
-    const material =
-      db
-        .prepare(
-          'SELECT * FROM materials WHERE material_id = ?'
-        )
-        .get(materialId);
-
-    if (!material) {
-      return res
-        .status(404)
-        .json({
-          error:
-            'Material not found.'
-        });
-    }
-
-    if (
-      !material.extracted_text ||
-      material.extraction_status ===
-        'needs_ocr'
-    ) {
-      return res
-        .status(422)
-        .json({
-          error:
-            'No usable extracted text is available for this material. It may be a scanned PDF, which needs OCR before it can be scheduled.'
-        });
+    let extractedText;
+    if (browserMaterial) {
+      try {
+        const localMaterial = await readBrowserVaultMaterial(
+          {materialId, material: browserMaterial},
+          extractPdfText,
+        );
+        extractedText = localMaterial.extractedText;
+      } catch (error) {
+        return res.status(error.status || 422).json({error: error.message || 'Could not read this Vault PDF.'});
+      }
+    } else {
+      const material = db.prepare('SELECT * FROM materials WHERE material_id = ?').get(materialId);
+      if (!material) {
+        return res.status(404).json({error: 'Material not found.'});
+      }
+      if (!material.extracted_text || material.extraction_status === 'needs_ocr') {
+        return res.status(422).json({error: 'No usable extracted text is available for this material. It may be a scanned PDF, which needs OCR before it can be scheduled.'});
+      }
+      extractedText = material.extracted_text;
     }
 
     try {
@@ -206,7 +203,7 @@ router.post(
        */
       const syllabus =
         await extractSyllabusTopics(
-          material.extracted_text
+          extractedText
         );
 
       /*
@@ -252,6 +249,31 @@ router.post(
             error:
               'The generated plan contains no valid future study dates.'
           });
+      }
+
+      if (browserMaterial) {
+        const scheduleId = randomUUID();
+        return res.status(201).json({
+          planId: scheduleId,
+          scheduleId,
+          materialId,
+          subject: syllabus.subject,
+          examDate,
+          availableHours: hours,
+          studyDays: days,
+          tasks: validTasks.map(task => ({
+            taskId: randomUUID(),
+            scheduleId,
+            materialId,
+            topic: task.topic,
+            subtopic: task.subtopic,
+            date: task.date,
+            durationMinutes: task.duration,
+            priority: task.priority,
+            status: 'pending',
+            completedAt: null,
+          })),
+        });
       }
 
       const scheduleId =
@@ -543,3 +565,4 @@ router.patch(
 );
 
 module.exports = router;
+

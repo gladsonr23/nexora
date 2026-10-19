@@ -12,6 +12,9 @@ const {
 
 const vault = require('../services/vaultService');
 const { requireAuth } = require('../middleware/auth');
+const { randomUUID } = require('node:crypto');
+const { extractPdfText } = require('../services/pdfService');
+const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
 
 const router = express.Router();
 
@@ -93,6 +96,7 @@ router.post(
       questionType,
       difficulty,
       questionCount,
+      material: browserMaterial,
     } = req.body || {};
 
     if (!materialId) {
@@ -139,40 +143,36 @@ router.post(
        *
        * Do NOT query the old SQLite materials table here.
        */
-      const material =
-        await vault.getMaterial(
+      let materialSubject = 'Study';
+      let extractedText;
+      if (browserMaterial) {
+        const localMaterial = await readBrowserVaultMaterial(
+          {materialId, material: browserMaterial},
+          extractPdfText,
+        );
+        extractedText = localMaterial.extractedText;
+        materialSubject = localMaterial.subject;
+      } else {
+        const material = await vault.getMaterial(
           req.auth.userId,
           materialId,
-          {
-            includeText: true,
-          }
+          {includeText: true},
         );
 
-      if (!material) {
-        return res.status(404).json({
-          error: 'Material not found.',
-        });
-      }
+        if (!material) {
+          return res.status(404).json({error: 'Material not found.'});
+        }
 
-      const extractedText =
-        material.extractedText ||
-        material.extracted_text ||
-        '';
-
-      if (
-        !extractedText.trim() ||
-        material.extractionStatus === 'needs_ocr' ||
-        material.extraction_status === 'needs_ocr'
-      ) {
-        return res.status(422).json({
-          error:
-            'No usable extracted text is available for this material yet. It may be a scanned PDF needing OCR.',
-        });
+        extractedText = material.extractedText || material.extracted_text || '';
+        materialSubject = material.subject || 'Study';
+        if (!extractedText.trim() || material.extractionStatus === 'needs_ocr' || material.extraction_status === 'needs_ocr') {
+          return res.status(422).json({error: 'No usable extracted text is available for this material yet. It may be a scanned PDF needing OCR.'});
+        }
       }
 
       console.log(
         `[quizzes] Generating quiz for ${materialId} ` +
-        `for user ${req.auth.userId}`
+        `for user ${req.auth?.userId || 'browser Vault'}`
       );
 
       const questions =
@@ -187,6 +187,21 @@ router.post(
           questionCount: count,
         });
 
+      if (browserMaterial) {
+        const title = `${materialSubject} ${topic && topic !== 'All' ? `· ${topic} ` : ''}Quiz`.trim();
+        return res.status(201).json({
+          quizId: randomUUID(),
+          materialId,
+          title,
+          topic: topic || 'All',
+          questionType,
+          difficulty,
+          questionCount: questions.length,
+          createdAt: new Date().toISOString(),
+          questions,
+        });
+      }
+
       const quizId =
         nextId(
           'QUIZ',
@@ -194,9 +209,7 @@ router.post(
           'quiz_id'
         );
 
-      const subject =
-        material.subject ||
-        'Study';
+      const subject = materialSubject;
 
       const title =
         `${subject} ` +
@@ -248,6 +261,10 @@ router.post(
         '[quizzes] generate failed:',
         err
       );
+
+      if (Number.isInteger(err?.status) && err.status >= 400 && err.status < 500) {
+        return res.status(err.status).json({error: err.message});
+      }
 
       /*
        * Vault service errors.
@@ -487,3 +504,4 @@ router.get(
 
 
 module.exports = router;
+

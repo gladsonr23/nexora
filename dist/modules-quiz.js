@@ -3,7 +3,7 @@
  * Exposes window.NexoraQuiz.mount(container).
  */
 (function () {
-  const { api, icon, toast, escapeHtml, takeActiveMaterial, loadingBlock, errorBlock, emptyBlock } = window.NexoraShared;
+  const { api, icon, toast, escapeHtml, takeActiveMaterial, listVaultMaterials, vaultMaterialPayload, loadingBlock, errorBlock, emptyBlock } = window.NexoraShared;
 
   const state = {
     materials: [],
@@ -19,7 +19,7 @@
     if (!container) return;
     container.innerHTML = loadingBlock('Loading Vault materials…');
     try {
-      state.materials = await api('/api/materials');
+      state.materials = await listVaultMaterials();
     } catch (err) {
       container.innerHTML = errorBlock(err.message || 'Could not load Vault materials.');
       container.querySelector('.nxm-retry')?.addEventListener('click', () => mount(container));
@@ -67,6 +67,7 @@
           <button type="button" class="nx-primary-button" id="nxq-generate">${icon('quiz')}<span>Generate Quiz</span></button>
         </div>
       </div>
+      <p class="nxm-help">The PDF stays in your browser Vault. Its contents are sent to Nexora’s server for text extraction and AI quiz generation.</p>
       <div id="nxq-status"></div>
       <div id="nxq-play"></div>
     `;
@@ -93,19 +94,27 @@
     }, 1400);
 
     try {
+      const materialPayload = await vaultMaterialPayload(materialId);
       const quiz = await api('/api/quizzes/generate', {
         method: 'POST',
-        body: JSON.stringify({ materialId, topic, questionType, difficulty, questionCount }),
+        body: JSON.stringify({ ...materialPayload, topic, questionType, difficulty, questionCount }),
       });
       clearInterval(stageTimer);
       statusEl.innerHTML = '';
 
       state.quiz = quiz;
+      state.quiz.materialId = materialId;
       state.questionType = questionType;
       state.answers = new Array(quiz.questions.length).fill(null);
       state.currentIndex = 0;
       state.startedAt = Date.now();
       state.lastAttempt = null;
+      try {
+        const existing = JSON.parse(localStorage.getItem('nexora-quizzes') || '[]');
+        const list = Array.isArray(existing) ? existing : [];
+        list.unshift({id:quiz.quizId,title:quiz.title,materialId,createdAt:new Date().toISOString(),questionCount:quiz.questions.length});
+        localStorage.setItem('nexora-quizzes', JSON.stringify(list.slice(0,50)));
+      } catch (_) {}
 
       renderQuestion(container);
     } catch (err) {
@@ -187,10 +196,7 @@
     const timeTakenSec = Math.round((Date.now() - state.startedAt) / 1000);
 
     try {
-      const attempt = await api(`/api/quizzes/${state.quiz.quizId}/attempt`, {
-        method: 'POST',
-        body: JSON.stringify({ answers: state.answers, timeTakenSec }),
-      });
+      const attempt = gradeQuiz(state.quiz, state.answers, timeTakenSec);
       state.lastAttempt = attempt;
       try {
         const stored = JSON.parse(localStorage.getItem('nexora-quiz-attempts') || '[]');
@@ -209,6 +215,23 @@
       playEl.innerHTML = errorBlock(err.message || 'Could not submit quiz.');
       playEl.querySelector('.nxm-retry')?.addEventListener('click', () => submitQuiz(container));
     }
+  }
+
+  function gradeQuiz(quiz, answers, timeTakenSec) {
+    const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const results = quiz.questions.map((question, index) => {
+      const given = answers[index];
+      let correct = false;
+      if (quiz.questionType === 'mcq') correct = Number(given) === question.correctAnswer;
+      else {
+        const expected = normalize(quiz.questionType === 'term_check' ? question.expectedDefinition : question.expectedAnswer);
+        const actual = normalize(given);
+        correct = Boolean(actual && expected && (actual === expected || (expected.length >= 24 && (expected.includes(actual) || actual.includes(expected)))));
+      }
+      return {given: given ?? null, correct};
+    });
+    const score = results.filter(result => result.correct).length;
+    return {score, totalQuestions: results.length, percentage: Math.round(score / results.length * 100), timeTakenSec, results, questions: quiz.questions};
   }
 
   function renderResults(container) {
@@ -257,8 +280,20 @@
     `;
 
     playEl.querySelector('#nxq-generate-another').addEventListener('click', () => mount(container));
-    playEl.querySelector('#nxq-review-material').addEventListener('click', () => {
-      window.open(`${window.NexoraShared.API_BASE}/api/materials/${state.quiz.materialId}/file`, '_blank');
+    playEl.querySelector('#nxq-review-material').addEventListener('click', async () => {
+      try {
+        const record = await window.NexoraVaultFileStore?.get(state.quiz.materialId);
+        if (!record?.blob) throw new Error('That file is no longer in this browser’s Vault.');
+        const url = URL.createObjectURL(record.blob);
+        const tab = window.open(url, '_blank', 'noopener');
+        if (!tab) {
+          URL.revokeObjectURL(url);
+          throw new Error('Allow pop-ups to review this PDF.');
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (error) {
+        toast(error.message || 'Could not open the Vault PDF.');
+      }
     });
     playEl.querySelector('#nxq-ask-ai').addEventListener('click', () => {
       window.NexoraShared.setActiveMaterial(state.quiz.materialId);
@@ -268,3 +303,4 @@
 
   window.NexoraQuiz = { mount };
 })();
+
