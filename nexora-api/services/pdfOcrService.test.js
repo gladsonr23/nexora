@@ -51,6 +51,25 @@ test('sends an image-only scanned page to the configured OCR provider', async ()
   assert.deepEqual(getOcrProviders(pages), ['nvidia']);
 });
 
+test('retries a page with no NVIDIA detections using a higher-resolution PNG', async () => {
+  const requests = [];
+  const pages = await extractPdfWithOcr(makePdf(''), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    fallbackToLocalOcr: false,
+    recognizeImages: async (images, options) => {
+      requests.push({images, options});
+      return requests.length === 1 ? [''] : ['Text found on enhanced retry'];
+    },
+  });
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].options.mimeType, 'image/jpeg');
+  assert.equal(requests[1].options.mimeType, 'image/png');
+  assert.deepEqual([...requests[1].images[0].subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(pages[0].text, 'Text found on enhanced retry');
+  assert.equal(pages[0].source, 'nvidia');
+});
+
 test('fails promptly instead of starting local OCR when the preferred OCR provider fails', async () => {
   await assert.rejects(
     extractPdfWithOcr(makePdf(''), {

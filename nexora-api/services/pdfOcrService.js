@@ -26,6 +26,18 @@ function pdfJsResourceOptions() {
   return {wasmUrl: directory('node_modules/pdfjs-dist/wasm'), standardFontDataUrl: directory('node_modules/pdfjs-dist/standard_fonts')};
 }
 
+async function renderPdfPage(document, createCanvas, number, scale, mimeType) {
+  const page = await document.getPage(number);
+  try {
+    const viewport = page.getViewport({scale});
+    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+    return mimeType === 'image/png' ? canvas.toBuffer('image/png') : canvas.toBuffer('image/jpeg', 0.85);
+  } finally {
+    page.cleanup();
+  }
+}
+
 async function extractPdfWithOcr(bytes, {
   recognizeImages,
   recognizeImage = recognizeNvidiaOcrImage,
@@ -68,6 +80,7 @@ async function extractPdfWithOcr(bytes, {
     }
 
     const fallbackPages = [];
+    const retryPages = [];
     if (scannedPages.length && !nvidiaConfigured && !fallbackToLocalOcr) {
       throw new Error('NVIDIA OCR is not configured. Add NVIDIA_API_KEY to the API server environment.');
     }
@@ -92,13 +105,32 @@ async function extractPdfWithOcr(bytes, {
           batch.forEach((scanned, index) => {
             const text = String(texts[index] || '').trim();
             if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};
-            else if (fallbackToLocalOcr) fallbackPages.push({
-              ...scanned,
-              warnings: [error?.message || 'NVIDIA OCR returned no text; local OCR fallback was used.'],
-            });
-            else throw new Error('NVIDIA OCR returned no readable text for this scan. Try a clearer scan.');
+            else retryPages.push({...scanned, firstPassError: error});
           });
         }
+      }
+
+      for (let start = 0; start < retryPages.length; start += OCR_BATCH_SIZE) {
+        const batch = retryPages.slice(start, start + OCR_BATCH_SIZE);
+        const enhancedImages = await Promise.all(batch.map(scanned => renderPdfPage(document, createCanvas, scanned.number, 2.4, 'image/png')));
+        let texts;
+        let retryError;
+        try {
+          texts = await recognizeBatch(enhancedImages, {mimeType: 'image/png', timeoutMs: nvidiaTimeoutMs});
+        } catch (error) {
+          retryError = error;
+          if (!fallbackToLocalOcr) throw error;
+        }
+        batch.forEach((scanned, index) => {
+          const text = String(texts?.[index] || '').trim();
+          if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};
+          else if (fallbackToLocalOcr) fallbackPages.push({
+            ...scanned,
+            imageBytes: enhancedImages[index],
+            warnings: [retryError?.message || scanned.firstPassError?.message || 'NVIDIA OCR returned no text after a higher-resolution retry; local OCR fallback was used.'],
+          });
+          else throw new Error('NVIDIA OCR returned no text after a higher-resolution PNG retry. The page may be blank, rotated, or too faint to recognize.');
+        });
       }
     } else {
       fallbackPages.push(...scannedPages);
