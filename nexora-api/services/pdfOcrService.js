@@ -29,6 +29,8 @@ function pdfJsResourceOptions() {
 async function extractPdfWithOcr(bytes, {
   recognizeImages,
   recognizeImage = recognizeNvidiaOcrImage,
+  fallbackToLocalOcr = true,
+  nvidiaTimeoutMs = 45000,
   env = process.env,
 } = {}) {
   const [{createCanvas}, {createWorker}, {getDocument}] = await Promise.all([
@@ -66,6 +68,10 @@ async function extractPdfWithOcr(bytes, {
     }
 
     const fallbackPages = [];
+    if (scannedPages.length && !nvidiaConfigured && !fallbackToLocalOcr) {
+      throw new Error('NVIDIA OCR is not configured. Add NVIDIA_API_KEY to the API server environment.');
+    }
+
     if (nvidiaConfigured) {
       const windowSize = OCR_BATCH_SIZE * OCR_BATCH_CONCURRENCY;
       for (let start = 0; start < scannedPages.length; start += windowSize) {
@@ -76,19 +82,21 @@ async function extractPdfWithOcr(bytes, {
         }
         const results = await Promise.all(batches.map(async batch => {
           try {
-            return {batch, texts: await recognizeBatch(batch.map(page => page.imageBytes), {mimeType: 'image/jpeg'})};
+            return {batch, texts: await recognizeBatch(batch.map(page => page.imageBytes), {mimeType: 'image/jpeg', timeoutMs: nvidiaTimeoutMs})};
           } catch (error) {
             return {batch, error};
           }
         }));
         for (const {batch, texts = [], error} of results) {
+          if (error && !fallbackToLocalOcr) throw error;
           batch.forEach((scanned, index) => {
             const text = String(texts[index] || '').trim();
             if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};
-            else fallbackPages.push({
+            else if (fallbackToLocalOcr) fallbackPages.push({
               ...scanned,
               warnings: [error?.message || 'NVIDIA OCR returned no text; local OCR fallback was used.'],
             });
+            else throw new Error('NVIDIA OCR returned no readable text for this scan. Try a clearer scan.');
           });
         }
       }

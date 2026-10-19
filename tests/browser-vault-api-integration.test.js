@@ -55,11 +55,13 @@ const server = express()
 
 const originalFetch = global.fetch;
 let nvidiaRequests = 0;
+let failNvidia = false;
 let geminiPdfRequests = 0;
 let schedulePdfRequest;
 global.fetch = async (url, options) => {
   if (String(url).includes('ai.api.nvidia.com')) {
     nvidiaRequests += 1;
+    if (failNvidia) return new Response(JSON.stringify({detail: 'OCR temporarily unavailable'}), {status: 503});
     return new Response(JSON.stringify({data: [{index: 0, text_detections: [{text_prediction: {text: '1. Explain routing in a computer network and describe how routers choose a path. [5 marks]'}}]}]}), {
       status: 200,
       headers: {'content-type': 'application/json'},
@@ -177,6 +179,23 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
     body: JSON.stringify({...shared, topic: 'All', questionType: 'mcq', difficulty: 'medium', questionCount: 1}),
   });
   assert.equal(limited.status, 429);
+});
+
+test('Pattern Detector reports NVIDIA OCR failures promptly without starting local OCR fallback', async () => {
+  const address = server.address();
+  failNvidia = true;
+  try {
+    const response = await originalFetch(`http://127.0.0.1:${address.port}/api/pattern/extract?name=2025-Scanned.pdf`, {
+      method: 'POST',
+      headers: {'content-type': 'application/pdf'},
+      body: makePdf({scanned: true}),
+    });
+    const payload = await response.json();
+    assert.equal(response.status, 502);
+    assert.match(payload.error, /NVIDIA OCR failed: OCR temporarily unavailable/);
+  } finally {
+    failNvidia = false;
+  }
 });
 
 test.after(async () => {

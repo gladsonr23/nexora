@@ -51,6 +51,37 @@ test('sends an image-only scanned page to the configured OCR provider', async ()
   assert.deepEqual(getOcrProviders(pages), ['nvidia']);
 });
 
+test('fails promptly instead of starting local OCR when the preferred OCR provider fails', async () => {
+  await assert.rejects(
+    extractPdfWithOcr(makePdf(''), {
+      env: {NVIDIA_API_KEY: 'configured'},
+      fallbackToLocalOcr: false,
+      recognizeImage: async () => { throw new Error('NVIDIA OCR timed out while reading this page.'); },
+    }),
+    /NVIDIA OCR timed out/
+  );
+});
+
+test('fails clearly when local fallback is disabled and no preferred OCR key is configured', async () => {
+  await assert.rejects(
+    extractPdfWithOcr(makePdf(''), {env: {}, fallbackToLocalOcr: false}),
+    /NVIDIA OCR is not configured/
+  );
+});
+
+test('passes a shorter OCR timeout to the preferred provider when configured', async () => {
+  const pages = await extractPdfWithOcr(makePdf(''), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    nvidiaTimeoutMs: 20000,
+    recognizeImages: async (images, options) => {
+      assert.equal(options.timeoutMs, 20000);
+      return ['Recognized scanned page text'];
+    },
+  });
+
+  assert.equal(pages[0].source, 'nvidia');
+});
+
 test('batches scanned pages while preserving selectable page text and page order', async () => {
   let calls = 0;
   const pages = await extractPdfWithOcr(makePdf([

@@ -34,7 +34,7 @@ router.post('/pattern/extract',express.raw({type:'*/*',limit:'4mb'}),async(req,r
   try{
     const [, , {inferExamYear,parseQuestionPaper},{extractPdfWithOcr}]=await modulesPromise;
     const examYear=inferExamYear(filename,year);
-    const pages=pdf?await extractPdfWithOcr(bytes):[{number:1,text:bytes.toString('utf8'),source:'selectable'}];
+    const pages=pdf ? await extractPdfWithOcr(bytes, {fallbackToLocalOcr: false, nvidiaTimeoutMs: 20000}) : [{number: 1, text: bytes.toString('utf8'), source: 'selectable'}];
     if(!pages.some(page=>String(page.text||'').trim()))return res.status(422).json({error:'The OCR tools found no readable text. Try a clearer scan.'});
     const paper=parseQuestionPaper(pages,{filename,year:examYear}),providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
     if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.'});
