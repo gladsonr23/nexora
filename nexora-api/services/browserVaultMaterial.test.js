@@ -60,4 +60,3 @@ test('returns a clear OCR message when PDF parsing finds no usable text', async 
     error => error instanceof BrowserVaultMaterialError && error.status === 422 && /OCR/i.test(error.message),
   );
 });
-

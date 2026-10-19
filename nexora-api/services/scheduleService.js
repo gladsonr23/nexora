@@ -505,4 +505,3 @@ module.exports = {
   buildSchedule,
   WEEKDAYS
 };
-

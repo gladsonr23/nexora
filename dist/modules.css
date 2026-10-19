@@ -204,4 +204,3 @@
 .nxq-review-tag-correct { background: rgba(28,138,76,.12); color: #1c8a4c; }
 .nxq-review-tag-incorrect { background: rgba(183,53,22,.12); color: var(--nx-error); }
 .nxq-actions-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-

@@ -303,4 +303,3 @@
 
   window.NexoraQuiz = { mount };
 })();
-

@@ -68,4 +68,3 @@ test('browser Vault handoff fails clearly after a file is removed', async () => 
   const shared = loadShared({get: async () => null});
   await assert.rejects(shared.vaultMaterialPayload('deleted-file'), /no longer in this browser/i);
 });
-

@@ -108,4 +108,3 @@ test.after(async () => {
   db.close();
   await fs.promises.rm(dataDir, {recursive: true, force: true});
 });
-
