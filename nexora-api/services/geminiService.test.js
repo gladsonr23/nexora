@@ -18,3 +18,18 @@ test('stops waiting for a Gemini response at the configured request timeout', as
     error => error instanceof GeminiError && error.code === 'TIMEOUT' && error.status === 504 && /timed out/i.test(error.message),
   );
 });
+
+test('sends inline PDF data with the text prompt in one Gemini request', async () => {
+  let body;
+  await callGemini('system', 'Read this syllabus', {
+    inlineData: {mimeType: 'application/pdf', data: 'JVBERi0='},
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return new Response(JSON.stringify({candidates: [{content: {parts: [{text: '{"ok":true}'}]}}]}), {status: 200});
+    },
+  });
+  assert.deepEqual(body.contents[0].parts, [
+    {text: 'Read this syllabus'},
+    {inlineData: {mimeType: 'application/pdf', data: 'JVBERi0='}},
+  ]);
+});

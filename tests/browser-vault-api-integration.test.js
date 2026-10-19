@@ -54,14 +54,20 @@ const server = express()
   .listen(0, '127.0.0.1');
 
 const originalFetch = global.fetch;
+let nvidiaRequests = 0;
+let schedulePdfRequest;
 global.fetch = async (url, options) => {
   if (String(url).includes('ai.api.nvidia.com')) {
+    nvidiaRequests += 1;
     return new Response(JSON.stringify({data: [{index: 0, text_detections: [{text_prediction: {text: '1. Explain routing in a computer network and describe how routers choose a path. [5 marks]'}}]}]}), {
       status: 200,
       headers: {'content-type': 'application/json'},
     });
   }
   const request = JSON.parse(options.body);
+  const parts = request.contents?.[0]?.parts || [];
+  const inlinePdf = parts.find(part => part.inlineData?.mimeType === 'application/pdf');
+  if (inlinePdf) schedulePdfRequest = inlinePdf.inlineData;
   const prompt = request.systemInstruction?.parts?.[0]?.text || '';
   const result = prompt.includes('extracts structured academic syllabus')
     ? {subject: 'Networks', units: [{unit: 'Unit One', topics: ['Networking basics', 'Protocol layers']}], deadlines: []}
@@ -127,12 +133,15 @@ test('browser Vault PDF requests reach Schedule and Quiz generation without a se
   assert.deepEqual(pattern.processing.providers, ['nvidia']);
   assert.match(pattern.paper.processing, /NVIDIA Nemotron OCR/);
 
+  const nvidiaRequestsBeforeSchedule = nvidiaRequests;
   const scannedScheduleResponse = await originalFetch(`${baseUrl}/api/schedule/generate`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
     body: JSON.stringify({...scanned, examDate: date, availableHours: 2, studyDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}),
   });
   assert.equal(scannedScheduleResponse.status, 201, await scannedScheduleResponse.text());
+  assert.equal(nvidiaRequests, nvidiaRequestsBeforeSchedule, 'scanned planner PDFs should skip per-page NVIDIA OCR');
+  assert.deepEqual(schedulePdfRequest, {mimeType: 'application/pdf', data: scanned.material.fileBase64});
   const scannedQuizResponse = await originalFetch(`${baseUrl}/api/quizzes/generate`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},

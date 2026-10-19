@@ -181,7 +181,7 @@
           </button>
         </div>
 
-        <p class="nxm-help">The PDF stays in your browser Vault. Nexora’s server extracts text and generates the plan; scanned pages may be sent to NVIDIA Nemotron OCR.</p>
+        <p class="nxm-help">Your PDF stays in your browser Vault. If it is scanned, Nexora sends it securely to Gemini to read the syllabus and build your plan.</p>
 
       </div>
 
@@ -270,10 +270,10 @@
       const materialPayload = await vaultMaterialPayload(materialId);
       statusEl.innerHTML = loadingBlock('Reading the PDF and building your study plan…');
       slowWaitTimer = setTimeout(() => {
-        statusEl.innerHTML = loadingBlock('Still processing. Scanned PDF pages take longer to read—please keep this page open.');
+        statusEl.innerHTML = loadingBlock('Gemini is reading your scanned syllabus. Please keep this page open.');
       }, 15000);
       longWaitTimer = setTimeout(() => {
-        statusEl.innerHTML = loadingBlock('This is taking longer than usual. Larger scanned PDFs may need more time.');
+        statusEl.innerHTML = loadingBlock('Gemini is still processing this file. Larger scans can take a little longer.');
       }, 60000);
       const result = await api('/api/schedule/generate', {
         method: 'POST',

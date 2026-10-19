@@ -54,7 +54,7 @@ async function requestGemini(
   model,
   systemPrompt,
   userPrompt,
-  {fetchImpl = globalThis.fetch, timeoutMs = GEMINI_REQUEST_TIMEOUT_MS} = {}
+  {fetchImpl = globalThis.fetch, timeoutMs = GEMINI_REQUEST_TIMEOUT_MS, inlineData} = {}
 ) {
   const url =
     `${BASE_URL}/${model}:generateContent?key=${API_KEY}`;
@@ -64,9 +64,8 @@ async function requestGemini(
       {
         role: 'user',
         parts: [
-          {
-            text: userPrompt
-          }
+          {text: userPrompt},
+          ...(inlineData ? [{inlineData}] : []),
         ]
       }
     ],

@@ -6,6 +6,7 @@ const {
 
 const {
   extractSyllabusTopics,
+  extractSyllabusTopicsFromPdf,
   buildSchedule,
   WEEKDAYS
 } = require('../services/scheduleService');
@@ -14,9 +15,8 @@ const {
   GeminiError
 } = require('../services/geminiService');
 const { extractPdfText } = require('../services/pdfService');
-const {extractPdfTextWithOcr} = require('../services/pdfOcrService');
 const { randomUUID } = require('node:crypto');
-const { readBrowserVaultMaterial } = require('../services/browserVaultMaterial');
+const {decodeBrowserVaultMaterial} = require('../services/browserVaultMaterial');
 
 const router = express.Router();
 
@@ -177,14 +177,15 @@ router.post(
     }
 
     let extractedText;
+    let browserPdf;
     if (browserMaterial) {
       try {
-        const localMaterial = await readBrowserVaultMaterial(
-          {materialId, material: browserMaterial},
-          extractPdfText,
-          extractPdfTextWithOcr,
-        );
-        extractedText = localMaterial.extractedText;
+        browserPdf = decodeBrowserVaultMaterial({materialId, material: browserMaterial});
+        const extracted = await extractPdfText(browserPdf.bytes);
+        if (extracted.status === 'complete' && extracted.text.replace(/\s/g, '').length >= 40) {
+          extractedText = extracted.text;
+          browserPdf = undefined;
+        }
       } catch (error) {
         return res.status(error.status || 422).json({error: error.message || 'Could not read this Vault PDF.'});
       }
@@ -203,10 +204,9 @@ router.post(
       /*
        * Extract syllabus topics.
        */
-      const syllabus =
-        await extractSyllabusTopics(
-          extractedText
-        );
+      const syllabus = browserPdf
+        ? await extractSyllabusTopicsFromPdf(browserPdf.bytes, browserPdf.filename, browserPdf.subject)
+        : await extractSyllabusTopics(extractedText);
 
       /*
        * Build deterministic schedule.
