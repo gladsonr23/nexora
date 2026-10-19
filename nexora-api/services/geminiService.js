@@ -10,6 +10,8 @@ const API_KEY =
 const BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/models';
 
+const GEMINI_REQUEST_TIMEOUT_MS = 30000;
+
 
 class GeminiError extends Error {
   constructor(
@@ -51,7 +53,8 @@ function sleep(ms) {
 async function requestGemini(
   model,
   systemPrompt,
-  userPrompt
+  userPrompt,
+  {fetchImpl = globalThis.fetch, timeoutMs = GEMINI_REQUEST_TIMEOUT_MS} = {}
 ) {
   const url =
     `${BASE_URL}/${model}:generateContent?key=${API_KEY}`;
@@ -105,22 +108,25 @@ async function requestGemini(
 
     try {
 
-      response = await fetch(url, {
+      response = await fetchImpl(url, {
         method: 'POST',
 
         headers: {
           'Content-Type': 'application/json'
         },
 
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
       });
 
     } catch (err) {
-
-      throw new GeminiError(
-        `Could not reach Gemini API: ${err.message}`,
-        'NETWORK_ERROR'
+      const timedOut = err?.name === 'TimeoutError' || err?.name === 'AbortError';
+      const error = new GeminiError(
+        timedOut ? `Gemini request timed out after ${Math.ceil(timeoutMs / 1000)} seconds.` : `Could not reach Gemini API: ${err.message}`,
+        timedOut ? 'TIMEOUT' : 'NETWORK_ERROR'
       );
+      if (timedOut) error.status = 504;
+      throw error;
 
     }
 
@@ -239,7 +245,8 @@ async function requestGemini(
  */
 async function callGemini(
   systemPrompt,
-  userPrompt
+  userPrompt,
+  requestOptions = {}
 ) {
 
   if (!API_KEY) {
@@ -265,7 +272,8 @@ async function callGemini(
     return await requestGemini(
       GEMINI_MODEL,
       systemPrompt,
-      userPrompt
+      userPrompt,
+      requestOptions
     );
 
   } catch (primaryError) {
@@ -307,7 +315,8 @@ async function callGemini(
       return await requestGemini(
         FALLBACK_MODEL,
         systemPrompt,
-        userPrompt
+        userPrompt,
+        requestOptions
       );
 
     } catch (fallbackError) {
@@ -332,13 +341,15 @@ async function callGemini(
  */
 async function generateJson(
   systemPrompt,
-  userPrompt
+  userPrompt,
+  requestOptions = {}
 ) {
 
   const raw =
     await callGemini(
       systemPrompt,
-      userPrompt
+      userPrompt,
+      requestOptions
     );
 
 
@@ -365,7 +376,8 @@ async function generateJson(
     const repaired =
       await callGemini(
         'You are a strict JSON repair tool. Output only valid JSON.',
-        repairPrompt
+        repairPrompt,
+        requestOptions
       );
 
 

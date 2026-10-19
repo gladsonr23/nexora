@@ -1,8 +1,10 @@
 const path = require('node:path');
 const {langPath} = require('@tesseract.js-data/eng');
-const {getNvidiaOcrConfig, recognizeNvidiaOcrImage} = require('./nvidiaOcrService');
+const {getNvidiaOcrConfig, recognizeNvidiaOcrImage, recognizeNvidiaOcrImages} = require('./nvidiaOcrService');
 
 const MAX_OCR_PAGES = 25;
+const OCR_BATCH_SIZE = 4;
+const OCR_BATCH_CONCURRENCY = 2;
 let pdfJsPromise;
 
 function loadPdfJs() {
@@ -25,6 +27,7 @@ function pdfJsResourceOptions() {
 }
 
 async function extractPdfWithOcr(bytes, {
+  recognizeImages,
   recognizeImage = recognizeNvidiaOcrImage,
   env = process.env,
 } = {}) {
@@ -33,9 +36,13 @@ async function extractPdfWithOcr(bytes, {
   ]);
   const task = getDocument({data: new Uint8Array(bytes), useSystemFonts: true, ...pdfJsResourceOptions()});
   const document = await task.promise;
-  const pages = [];
+  const pages = Array(document.numPages);
+  const scannedPages = [];
   let worker;
   const nvidiaConfigured = Boolean(getNvidiaOcrConfig(env).apiKey);
+  const recognizeBatch = recognizeImages || (recognizeImage !== recognizeNvidiaOcrImage
+    ? async images => Promise.all(images.map(image => recognizeImage(image)))
+    : recognizeNvidiaOcrImages);
 
   try {
     if (document.numPages > MAX_OCR_PAGES) throw new Error(`Use a PDF with at most ${MAX_OCR_PAGES} pages for OCR.`);
@@ -45,40 +52,57 @@ async function extractPdfWithOcr(bytes, {
         const content = await page.getTextContent();
         const nativeText = content.items.filter(item => 'str' in item).map(item => item.str + (item.hasEOL ? '\n' : ' ')).join('').trim();
         if (nativeText.replace(/\s/g, '').length >= 15) {
-          pages.push({number, text: nativeText, source: 'selectable'});
+          pages[number - 1] = {number, text: nativeText, source: 'selectable'};
           continue;
         }
 
         const viewport = page.getViewport({scale: 1.6});
         const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
         await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
-        const imageBytes = canvas.toBuffer('image/png');
-        let text = '';
-        let source = 'tesseract';
-        const warnings = [];
-
-        if (nvidiaConfigured) {
-          try {
-            text = String(await recognizeImage(imageBytes)).trim();
-            if (text) source = 'nvidia';
-            else warnings.push('NVIDIA OCR returned no text; local OCR fallback was used.');
-          } catch (error) {
-            warnings.push(error?.message || 'NVIDIA OCR failed; local OCR fallback was used.');
-          }
-        }
-
-        if (!text) {
-          if (!worker) worker = await createWorker('eng', 1, {langPath, cacheMethod: 'none'});
-          const result = await worker.recognize(imageBytes);
-          text = String(result?.data?.text || '').trim();
-          source = 'tesseract';
-        }
-
-        if (!text) warnings.push('OCR could not read this page.');
-        pages.push({number, text, source, warnings});
+        scannedPages.push({number, imageBytes: canvas.toBuffer('image/jpeg', 0.85)});
       } finally {
         page.cleanup();
       }
+    }
+
+    const fallbackPages = [];
+    if (nvidiaConfigured) {
+      const windowSize = OCR_BATCH_SIZE * OCR_BATCH_CONCURRENCY;
+      for (let start = 0; start < scannedPages.length; start += windowSize) {
+        const window = scannedPages.slice(start, start + windowSize);
+        const batches = [];
+        for (let index = 0; index < window.length; index += OCR_BATCH_SIZE) {
+          batches.push(window.slice(index, index + OCR_BATCH_SIZE));
+        }
+        const results = await Promise.all(batches.map(async batch => {
+          try {
+            return {batch, texts: await recognizeBatch(batch.map(page => page.imageBytes), {mimeType: 'image/jpeg'})};
+          } catch (error) {
+            return {batch, error};
+          }
+        }));
+        for (const {batch, texts = [], error} of results) {
+          batch.forEach((scanned, index) => {
+            const text = String(texts[index] || '').trim();
+            if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};
+            else fallbackPages.push({
+              ...scanned,
+              warnings: [error?.message || 'NVIDIA OCR returned no text; local OCR fallback was used.'],
+            });
+          });
+        }
+      }
+    } else {
+      fallbackPages.push(...scannedPages);
+    }
+
+    for (const scanned of fallbackPages) {
+      if (!worker) worker = await createWorker('eng', 1, {langPath, cacheMethod: 'none'});
+      const result = await worker.recognize(scanned.imageBytes);
+      const text = String(result?.data?.text || '').trim();
+      const warnings = [...(scanned.warnings || [])];
+      if (!text) warnings.push('OCR could not read this page.');
+      pages[scanned.number - 1] = {number: scanned.number, text, source: 'tesseract', warnings};
     }
   } finally {
     if (worker) await worker.terminate();
@@ -101,4 +125,4 @@ async function extractPdfTextWithOcr(bytes, options) {
   return {status: 'complete', text: joinPdfPageText(pages), pages, providers: getOcrProviders(pages)};
 }
 
-module.exports = {MAX_OCR_PAGES, extractPdfWithOcr, extractPdfTextWithOcr, joinPdfPageText, getOcrProviders};
+module.exports = {MAX_OCR_PAGES, OCR_BATCH_SIZE, OCR_BATCH_CONCURRENCY, extractPdfWithOcr, extractPdfTextWithOcr, joinPdfPageText, getOcrProviders};

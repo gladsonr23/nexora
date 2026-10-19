@@ -258,32 +258,23 @@
       return;
     }
 
-    const stages = [
-      'Reading syllabus…',
-      'Identifying topics…',
-      'Building study plan…',
-      'Saving schedule…'
-    ];
-
-    let stageIdx = 0;
-
     statusEl.innerHTML =
-      loadingBlock(stages[0]);
+      loadingBlock('Preparing your syllabus PDF…');
 
     resultsEl.innerHTML = '';
 
-    const stageTimer = setInterval(() => {
-      stageIdx = Math.min(
-        stageIdx + 1,
-        stages.length - 1
-      );
-
-      statusEl.innerHTML =
-        loadingBlock(stages[stageIdx]);
-    }, 1400);
+    let slowWaitTimer;
+    let longWaitTimer;
 
     try {
       const materialPayload = await vaultMaterialPayload(materialId);
+      statusEl.innerHTML = loadingBlock('Reading the PDF and building your study plan…');
+      slowWaitTimer = setTimeout(() => {
+        statusEl.innerHTML = loadingBlock('Still processing. Scanned PDF pages take longer to read—please keep this page open.');
+      }, 15000);
+      longWaitTimer = setTimeout(() => {
+        statusEl.innerHTML = loadingBlock('This is taking longer than usual. Larger scanned PDFs may need more time.');
+      }, 60000);
       const result = await api('/api/schedule/generate', {
         method: 'POST',
 
@@ -296,7 +287,8 @@
         }),
       });
 
-      clearInterval(stageTimer);
+      clearTimeout(slowWaitTimer);
+      clearTimeout(longWaitTimer);
 
       statusEl.innerHTML = '';
 
@@ -309,7 +301,8 @@
 
       toast('Study plan generated.');
     } catch (err) {
-      clearInterval(stageTimer);
+      clearTimeout(slowWaitTimer);
+      clearTimeout(longWaitTimer);
 
       statusEl.innerHTML =
         errorBlock(

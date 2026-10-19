@@ -15,26 +15,36 @@ function getNvidiaOcrConfig(env = process.env) {
   };
 }
 
-function parseNvidiaOcrText(payload) {
+function parseNvidiaOcrPages(payload, expectedCount = 0) {
   const rows = Array.isArray(payload?.data) ? payload.data : [];
-  return rows
-    .slice()
-    .sort((left, right) => Number(left?.index || 0) - Number(right?.index || 0))
-    .flatMap(row => Array.isArray(row?.text_detections) ? row.text_detections : [])
-    .map(detection => String(detection?.text_prediction?.text || '').trim())
-    .filter(Boolean)
-    .join('\n');
+  const pages = Array.from({length: Math.max(expectedCount, rows.length)}, () => '');
+  for (const [position, row] of rows.entries()) {
+    const index = Number.isInteger(Number(row?.index)) ? Number(row.index) : position;
+    if (index < 0 || index >= pages.length) continue;
+    pages[index] = (Array.isArray(row?.text_detections) ? row.text_detections : [])
+      .map(detection => String(detection?.text_prediction?.text || '').trim())
+      .filter(Boolean)
+      .join('\n');
+  }
+  return pages;
 }
 
-async function recognizeNvidiaOcrImage(imageBytes, {
+function parseNvidiaOcrText(payload) {
+  return parseNvidiaOcrPages(payload).filter(Boolean).join('\n');
+}
+
+async function recognizeNvidiaOcrImages(imageBytesList, {
   apiKey = getNvidiaOcrConfig().apiKey,
   endpoint = getNvidiaOcrConfig().endpoint,
   fetchImpl = globalThis.fetch,
   timeoutMs = 45000,
+  mimeType = 'image/jpeg',
 } = {}) {
   if (!apiKey) throw new NvidiaOcrError('NVIDIA OCR is not configured. Add NVIDIA_API_KEY to the API server environment.', 503);
   if (typeof fetchImpl !== 'function') throw new NvidiaOcrError('This server does not support outbound OCR requests.', 503);
-  if (!Buffer.isBuffer(imageBytes) || imageBytes.length === 0) throw new NvidiaOcrError('The scanned page image is empty.', 422);
+  if (!Array.isArray(imageBytesList) || imageBytesList.length === 0 || imageBytesList.some(image => !Buffer.isBuffer(image) || image.length === 0)) {
+    throw new NvidiaOcrError('One or more scanned page images are empty.', 422);
+  }
 
   let response;
   try {
@@ -46,7 +56,7 @@ async function recognizeNvidiaOcrImage(imageBytes, {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: [{type: 'image_url', url: `data:image/png;base64,${imageBytes.toString('base64')}`}],
+        input: imageBytesList.map(imageBytes => ({type: 'image_url', url: `data:${mimeType};base64,${imageBytes.toString('base64')}`})),
         merge_levels: ['paragraph'],
       }),
       signal: AbortSignal.timeout(timeoutMs),
@@ -62,13 +72,23 @@ async function recognizeNvidiaOcrImage(imageBytes, {
     throw new NvidiaOcrError(message ? `NVIDIA OCR failed: ${message}` : `NVIDIA OCR returned HTTP ${response.status}.`, response.status >= 400 && response.status < 500 ? 422 : 502);
   }
 
-  return parseNvidiaOcrText(payload);
+  return parseNvidiaOcrPages(payload, imageBytesList.length);
+}
+
+async function recognizeNvidiaOcrImage(imageBytes, options = {}) {
+  const [text] = await recognizeNvidiaOcrImages([imageBytes], {
+    ...options,
+    mimeType: options.mimeType || 'image/png',
+  });
+  return text || '';
 }
 
 module.exports = {
   NVIDIA_OCR_URL,
   NvidiaOcrError,
   getNvidiaOcrConfig,
+  parseNvidiaOcrPages,
   parseNvidiaOcrText,
+  recognizeNvidiaOcrImages,
   recognizeNvidiaOcrImage,
 };

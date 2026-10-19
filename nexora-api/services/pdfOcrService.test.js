@@ -2,19 +2,25 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {extractPdfWithOcr, joinPdfPageText, getOcrProviders} = require('./pdfOcrService');
 
-function makePdf(text = 'A selectable syllabus page with enough readable text to avoid OCR.') {
+function makePdf(textOrPages = 'A selectable syllabus page with enough readable text to avoid OCR.') {
+  const texts = Array.isArray(textOrPages) ? textOrPages : [textOrPages];
   let source = '%PDF-1.4\n';
   const offsets = [0];
   const add = (number, body) => {
     offsets[number] = Buffer.byteLength(source, 'binary');
     source += `${number} 0 obj\n${body}\nendobj\n`;
   };
-  const stream = text ? `BT /F1 12 Tf 50 720 Td (${text}) Tj ET` : '';
   add(1, '<< /Type /Catalog /Pages 2 0 R >>');
-  add(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  add(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>');
-  add(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  add(5, `<< /Length ${Buffer.byteLength(stream, 'binary')} >>\nstream\n${stream}\nendstream`);
+  const pageIds = texts.map((_, index) => index + 3);
+  const contentIds = texts.map((_, index) => index + texts.length + 3);
+  const fontId = texts.length * 2 + 3;
+  add(2, `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${texts.length} >>`);
+  texts.forEach((text, index) => {
+    add(pageIds[index], `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`);
+    const stream = text ? `BT /F1 12 Tf 50 720 Td (${text}) Tj ET` : '';
+    add(contentIds[index], `<< /Length ${Buffer.byteLength(stream, 'binary')} >>\nstream\n${stream}\nendstream`);
+  });
+  add(fontId, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   const xrefOffset = Buffer.byteLength(source, 'binary');
   source += `xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
   return Buffer.from(source, 'binary');
@@ -43,4 +49,26 @@ test('sends an image-only scanned page to the configured OCR provider', async ()
   assert.equal(pages[0].text, 'Recognized scanned page text');
   assert.equal(pages[0].source, 'nvidia');
   assert.deepEqual(getOcrProviders(pages), ['nvidia']);
+});
+
+test('batches scanned pages while preserving selectable page text and page order', async () => {
+  let calls = 0;
+  const pages = await extractPdfWithOcr(makePdf([
+    'A selectable first page that should not be sent to the OCR provider.',
+    '',
+    '',
+  ]), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    recognizeImages: async images => {
+      calls += 1;
+      assert.equal(images.length, 2);
+      return ['Recognized second page', 'Recognized third page'];
+    },
+  });
+
+  assert.equal(calls, 1);
+  assert.deepEqual(pages.map(page => page.number), [1, 2, 3]);
+  assert.equal(pages[0].source, 'selectable');
+  assert.equal(pages[1].text, 'Recognized second page');
+  assert.equal(pages[2].text, 'Recognized third page');
 });

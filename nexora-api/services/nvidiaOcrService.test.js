@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   NvidiaOcrError,
   parseNvidiaOcrText,
+  recognizeNvidiaOcrImages,
   recognizeNvidiaOcrImage,
 } = require('./nvidiaOcrService');
 
@@ -31,6 +32,26 @@ test('sends scanned page data to the configured NVIDIA endpoint with server-side
   assert.equal(request.body.input[0].type, 'image_url');
   assert.equal(request.body.input[0].url, `data:image/png;base64,${image.toString('base64')}`);
   assert.deepEqual(request.body.merge_levels, ['paragraph']);
+});
+
+test('sends multiple scanned pages in one NVIDIA request and returns text in page order', async () => {
+  const images = [Buffer.from('page one'), Buffer.from('page two')];
+  let request;
+  const pages = await recognizeNvidiaOcrImages(images, {
+    apiKey: 'test-secret',
+    endpoint: 'https://ocr.example.test/v1/ocr',
+    fetchImpl: async (_url, options) => {
+      request = JSON.parse(options.body);
+      return new Response(JSON.stringify({data: [
+        {index: 1, text_detections: [{text_prediction: {text: 'Second page'}}]},
+        {index: 0, text_detections: [{text_prediction: {text: 'First page'}}]},
+      ]}), {status: 200});
+    },
+  });
+
+  assert.equal(request.input.length, 2);
+  assert.match(request.input[0].url, /^data:image\/jpeg;base64,/);
+  assert.deepEqual(pages, ['First page', 'Second page']);
 });
 
 test('fails clearly when the NVIDIA API key is missing', async () => {
