@@ -49,8 +49,24 @@ function questionStart(line) {
   const match = line.match(/^\s*(?:(?:Q(?:uestion)?\s*\.?\s*)?(\d{1,2})(?:\s*[.):\-]|\s+(?=[A-Z]))\s*)(.+)$/i);
   if (!match) return null;
   const text = match[2].trim();
-  if (text.length < 8 || /^\d/.test(text)) return null;
+  if (!isQuestionStemLine(text) || /^\d/.test(text)) return null;
   return { number: Number(match[1]), text };
+}
+
+function questionNumberOnly(line) {
+  const match = String(line).match(/^\s*(?:Q(?:uestion)?\s*\.?\s*)?(\d{1,2})\s*[.):\-]?\s*$/i);
+  return match ? Number(match[1]) : null;
+}
+
+function isQuestionStemLine(line) {
+  const text = String(line || '').trim();
+  const option = /^(?:\([A-D]\)|[A-D][).:])\s/i.test(text);
+  const header = /^(?:page\s+\d+|section\b|part\s*(?:[-:][A-C])?\b|time\s*:|maximum\s+marks|marks\b|answer\s+all\b|instructions?\s*:)/i.test(text);
+  return text.length >= 8 && /[a-z]/i.test(text) && !option && !header;
+}
+
+function isLikelyQuestionStemLine(line) {
+  return isQuestionStemLine(line) && /^(?:the|what|how|find|write|state|solve|prove|derive|evaluate|show|determine|calculate|obtain|expand|using|for|in|if|let|given|which|why|when|consider|explain|define|compute|transform|fourier|z[ -]?transform|a|an|at|verify|establish|discuss|draw|list)\b/i.test(String(line).trim());
 }
 
 function extractMarks(text) {
@@ -65,6 +81,7 @@ function extractMarks(text) {
 function parseQuestionPaper(pages, metadata = {}) {
   const questions = [];
   let current = null;
+  let pendingNumber = null;
   const flush = () => {
     if (!current) return;
     const cleaned = extractMarks(current.parts.join(' ').replace(/\s+/g, ' '));
@@ -80,18 +97,48 @@ function parseQuestionPaper(pages, metadata = {}) {
       if (!line) continue;
       const start = questionStart(line);
       if (start) {
+        if (pendingNumber?.number === start.number) pendingNumber = null;
         flush();
         current = { number: start.number, page: page.number, parts: [start.text] };
+        continue;
+      }
+      const isolatedNumber = questionNumberOnly(line);
+      if (isolatedNumber !== null && isolatedNumber > 0) {
+        if (current?.number === isolatedNumber) continue;
+        flush();
+        pendingNumber = { number: isolatedNumber, page: page.number, skippedLines: 0 };
+        continue;
+      }
+      if (pendingNumber) {
+        if (isLikelyQuestionStemLine(line)) {
+          current = { number: pendingNumber.number, page: pendingNumber.page, parts: [line] };
+          pendingNumber = null;
+        } else if (++pendingNumber.skippedLines > 2) {
+          pendingNumber = null;
+        }
+        continue;
       } else if (current && !/^(?:page\s+\d+|section\s+[a-z]|time\s*:|maximum\s+marks|instructions?\s*:)/i.test(line)) {
         current.parts.push(line);
       }
     }
   }
   flush();
+  const deduplicated = [];
+  for (const question of questions) {
+    const duplicate = deduplicated.find(existing => existing.page === question.page && existing.number === question.number &&
+      (similarity(existing.text, question.text) >= 0.72 || existing.text.toLowerCase().includes(question.text.toLowerCase()) || question.text.toLowerCase().includes(existing.text.toLowerCase())));
+    if (!duplicate) deduplicated.push(question);
+    else if (question.text.length > duplicate.text.length) {
+      duplicate.text = question.text;
+      duplicate.marks ??= question.marks;
+    } else {
+      duplicate.marks ??= question.marks;
+    }
+  }
   return {
     filename: String(metadata.filename || 'Question paper').slice(0, 120),
     year: String(metadata.year || '').slice(0, 20),
-    questions,
+    questions: deduplicated,
     pageCount: pages.length
   };
 }

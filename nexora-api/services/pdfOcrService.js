@@ -1,5 +1,4 @@
 const path = require('node:path');
-const {langPath} = require('@tesseract.js-data/eng');
 const {getNvidiaOcrConfig, recognizeNvidiaOcrImage, recognizeNvidiaOcrImages} = require('./nvidiaOcrService');
 
 const MAX_OCR_PAGES = 25;
@@ -54,10 +53,12 @@ async function extractPdfWithOcr(bytes, {
   recognizeImages,
   recognizeImage = recognizeNvidiaOcrImage,
   fallbackToLocalOcr = true,
+  continueOnUnreadablePages = false,
   nvidiaTimeoutMs = 45000,
   env = process.env,
+  runtime,
 } = {}) {
-  const [{createCanvas}, {createWorker}, {getDocument}] = await Promise.all([
+  const [{createCanvas}, {createWorker}, {getDocument}] = runtime || await Promise.all([
     import('@napi-rs/canvas'), import('tesseract.js'), loadPdfJs(),
   ]);
   const task = getDocument({data: new Uint8Array(bytes), useSystemFonts: true, ...pdfJsResourceOptions()});
@@ -118,7 +119,7 @@ async function extractPdfWithOcr(bytes, {
           }
         }));
         for (const {batch, texts = [], error} of results) {
-          if (error && !fallbackToLocalOcr) throw error;
+          if (error && !fallbackToLocalOcr && !continueOnUnreadablePages) throw error;
           batch.forEach((scanned, index) => {
             const text = String(texts[index] || '').trim();
             if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};
@@ -146,6 +147,12 @@ async function extractPdfWithOcr(bytes, {
             imageBytes: enhancedImages[index],
             warnings: [retryError?.message || scanned.firstPassError?.message || 'NVIDIA OCR returned no text after a higher-resolution retry; local OCR fallback was used.'],
           });
+          else if (continueOnUnreadablePages) pages[scanned.number - 1] = {
+            number: scanned.number,
+            text: '',
+            source: 'unreadable',
+            warnings: [retryError?.message || scanned.firstPassError?.message || 'NVIDIA OCR returned no text after a higher-resolution retry.'],
+          };
           else throw new Error('NVIDIA OCR returned no text after a higher-resolution PNG retry. The page may be blank, rotated, or too faint to recognize.');
         });
       }
@@ -154,7 +161,10 @@ async function extractPdfWithOcr(bytes, {
     }
 
     for (const scanned of fallbackPages) {
-      if (!worker) worker = await createWorker('eng', 1, {langPath, cacheMethod: 'none'});
+      if (!worker) {
+        const {langPath} = require('@tesseract.js-data/eng');
+        worker = await createWorker('eng', 1, {langPath, cacheMethod: 'none'});
+      }
       const result = await worker.recognize(scanned.imageBytes);
       const text = String(result?.data?.text || '').trim();
       const warnings = [...(scanned.warnings || [])];

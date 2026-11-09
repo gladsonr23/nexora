@@ -26,6 +26,41 @@ function makePdf(textOrPages = 'A selectable syllabus page with enough readable 
   return Buffer.from(source, 'binary');
 }
 
+function fakeRuntime(pageCount, {visibleInk = true} = {}) {
+  return [
+    {createCanvas(width, height) {
+      const pixels = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0; i < pixels.length; i += 4) {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
+        pixels[i + 3] = 255;
+      }
+      if (visibleInk) {
+        for (let sample = 0; sample < Math.max(20, Math.floor(width * height / 80)); sample += 1) {
+          const index = sample * 64;
+          if (index < pixels.length) pixels[index] = pixels[index + 1] = pixels[index + 2] = 0;
+        }
+      }
+      const context = {getImageData: () => ({data: pixels})};
+      return {width, height, getContext: () => context, toBuffer: mime => Buffer.from(mime)};
+    }},
+    {createWorker: async () => { throw new Error('Local OCR must not run in these strict-provider tests'); }},
+    {getDocument() {
+      const document = {
+        numPages: pageCount,
+        async getPage() {
+          return {
+            getTextContent: async () => ({items: []}),
+            getViewport: ({scale}) => ({width: Math.ceil(20 * scale), height: Math.ceil(20 * scale)}),
+            render: () => ({promise: Promise.resolve()}),
+            cleanup() {},
+          };
+        },
+      };
+      return {promise: Promise.resolve(document), destroy: async () => {}};
+    }},
+  ];
+}
+
 test('extracts selectable PDF text without invoking remote or local OCR', async () => {
   const pages = await extractPdfWithOcr(makePdf(), {
     env: {},
@@ -41,6 +76,8 @@ test('extracts selectable PDF text without invoking remote or local OCR', async 
 test('sends an image-only scanned page to the configured OCR provider', async () => {
   const pages = await extractPdfWithOcr(makePdf(''), {
     env: {NVIDIA_API_KEY: 'configured'},
+    fallbackToLocalOcr: false,
+    runtime: fakeRuntime(1),
     recognizeImage: async image => {
       assert.ok(Buffer.isBuffer(image));
       return 'Recognized scanned page text';
@@ -55,12 +92,35 @@ test('skips a blank scanned page without calling a remote or local OCR provider'
   let calls = 0;
   const pages = await extractPdfWithOcr(makePdf(''), {
     env: {NVIDIA_API_KEY: 'configured'},
+    fallbackToLocalOcr: false,
+    runtime: fakeRuntime(1, {visibleInk: false}),
     recognizeImage: async () => { calls += 1; return ''; },
     recognizeImages: async () => { calls += 1; return ['']; },
   });
   assert.equal(calls, 0);
   assert.equal(pages[0].text, '');
   assert.equal(pages[0].source, 'blank');
+});
+
+test('returns readable pages when another scanned page remains unreadable after retry', async () => {
+  let call = 0;
+  const pages = await extractPdfWithOcr(makePdf(['', '']), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    fallbackToLocalOcr: false,
+    continueOnUnreadablePages: true,
+    runtime: fakeRuntime(2),
+    recognizeImages: async () => {
+      call += 1;
+      return call === 1 ? ['Readable question page', ''] : [''];
+    },
+  });
+
+  assert.equal(call, 2);
+  assert.equal(pages[0].text, 'Readable question page');
+  assert.equal(pages[0].source, 'nvidia');
+  assert.equal(pages[1].text, '');
+  assert.equal(pages[1].source, 'unreadable');
+  assert.match(pages[1].warnings[0], /higher-resolution retry/);
 });
 
 test('retries a page with no NVIDIA detections using a higher-resolution PNG', async () => {

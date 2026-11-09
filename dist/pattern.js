@@ -317,7 +317,7 @@
     if (papers.length + files.length > 30) return setError(`You can add ${30-papers.length} more paper${30-papers.length===1?'':'s'}.`);
     setError('');
     addButton.disabled = true;
-    const added=[]; const failures=[];
+    const added=[]; const failures=[]; const warnings=[];
     progress.hidden=false;
     try {
       if (storeOriginals) {
@@ -334,11 +334,12 @@
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Could not read this paper.');
           added.push(data.paper);
+          if(data.processing?.warnings?.length) warnings.push(`${file.name}: ${data.processing.warnings.join(' ')}`);
         } catch (problem) { failures.push(`${file.name}: ${problem.message || 'Could not read this paper.'}`); }
       }
       if (added.length) {
         papers.push(...added); sortPapersByYear(papers); persist(); savePapersToVault(added); pendingFiles=[]; form.reset(); renderPendingFiles(); renderPapers(); await analyze();
-        progress.textContent=`Added ${added.length} paper${added.length===1?'':'s'}. The original files and extracted question banks are in Vault.`;
+        progress.textContent=`Added ${added.length} paper${added.length===1?'':'s'}. The original files and extracted question banks are in Vault.${warnings.length ? ` Review: ${warnings.join(' ')}` : ''}`;
       }
       if (failures.length) setError(failures.join(' '));
     } catch (problem) { setError(problem.message || 'Could not save or analyze these papers.'); }

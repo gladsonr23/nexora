@@ -34,12 +34,19 @@ router.post('/pattern/extract',express.raw({type:'*/*',limit:'4mb'}),async(req,r
   try{
     const [, , {inferExamYear,parseQuestionPaper},{extractPdfWithOcr}]=await modulesPromise;
     const examYear=inferExamYear(filename,year);
-    const pages=pdf ? await extractPdfWithOcr(bytes, {fallbackToLocalOcr: false, nvidiaTimeoutMs: 20000}) : [{number: 1, text: bytes.toString('utf8'), source: 'selectable'}];
-    if(!pages.some(page=>String(page.text||'').trim()))return res.status(422).json({error:'The OCR tools found no readable text. Try a clearer scan.'});
+    const pages=pdf ? await extractPdfWithOcr(bytes, {fallbackToLocalOcr: false, continueOnUnreadablePages: true, nvidiaTimeoutMs: 20000}) : [{number: 1, text: bytes.toString('utf8'), source: 'selectable'}];
+    const ocrWarnings=pages.flatMap(page=>page.warnings||[]);
+    if(!pages.some(page=>String(page.text||'').trim()))return res.status(422).json({error:ocrWarnings[0]||'The OCR tools found no readable text. Try a clearer scan.',processing:{warnings:ocrWarnings}});
     const paper=parseQuestionPaper(pages,{filename,year:examYear}),providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
-    if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.'});
+    if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.',processing:{warnings:ocrWarnings}});
+    const numberCounts=new Map();
+    for(const question of paper.questions)numberCounts.set(question.number,(numberCounts.get(question.number)||0)+1);
+    const repeatedNumbers=[...numberCounts].filter(([,count])=>count>1).map(([number])=>number);
+    const parseWarnings=[];
+    if(repeatedNumbers.length)parseWarnings.push(`OCR detected repeated question numbers (${repeatedNumbers.join(', ')}); review this paper before relying on its frequency analysis.`);
+    if(scanned&&paper.questions.length<12)parseWarnings.push(`Only ${paper.questions.length} question blocks were detected; this scanned paper may be incomplete.`);
     paper.id=require('node:crypto').randomUUID();paper.addedAt=new Date().toISOString();paper.processing=scanned?`${providers.map(provider=>provider==='nvidia'?'NVIDIA Nemotron OCR':'Local Tesseract').join(' + ')} OCR`:'Selectable PDF text';
-    return res.json({paper,processing:{scanned,providers,warnings:pages.flatMap(page=>page.warnings||[]),ocrAgreement:pages.filter(page=>page.source==='ocr').map(page=>page.agreement)}});
+    return res.json({paper,processing:{scanned,providers,warnings:[...ocrWarnings,...parseWarnings],unreadablePages:pages.filter(page=>page.source==='unreadable').map(page=>page.number),ocrAgreement:pages.filter(page=>page.source==='ocr').map(page=>page.agreement)}});
   }catch(error){return res.status(502).json({error:error?.message||'Could not extract this paper.'});}
 });
 module.exports=router;
