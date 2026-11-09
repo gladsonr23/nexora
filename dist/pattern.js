@@ -214,7 +214,8 @@
         const row=node('label','nx-pattern-mark-row');
         const paperName=item.year ? `${item.year} · ${item.paper}` : item.paper;
         const questionName=item.number ? `Q${item.number}` : 'Question';
-        row.append(node('span','',`${paperName} · ${questionName}${item.page ? ` · p.${item.page}` : ''}${item.markSource==='manual' ? ' · edited' : ''}`));
+        const markLabel=item.markSource==='manual' ? ' · edited' : item.markSource==='section' ? ' · section estimate' : '';
+        row.append(node('span','',`${paperName} · ${questionName}${item.page ? ` · p.${item.page}` : ''}${markLabel}`));
         const marksInput=node('input');
         marksInput.type='number'; marksInput.min='1'; marksInput.max='100'; marksInput.step='1'; marksInput.placeholder='Not found';
         marksInput.value=item.marks ?? '';

@@ -78,20 +78,43 @@ function extractMarks(text) {
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    if (match) return { text: text.slice(0, match.index).trim(), marks: Number(match[1]) };
+    if (match) return { text: text.slice(0, match.index).trim(), marks: Number(match[1]), markSource: 'explicit' };
   }
-  return { text: text.trim(), marks: null };
+  return { text: text.trim(), marks: null, markSource: null };
+}
+
+function sectionMarkRule(line) {
+  const section = String(line || '').match(/\bpart\s*[- ]?\s*([a-c])\b/i);
+  if (!section) return null;
+  const formula = String(line).match(/(\d{1,2})\s*[x×*]\s*(\d{1,2})(?:\s*={1,2}\s*(\d{1,3}))?/i);
+  if (formula) {
+    const count = Number(formula[1]), perQuestion = Number(formula[2]), total = Number(formula[3]);
+    if (count >= 1 && perQuestion >= 1 && perQuestion <= 100) {
+      const trailingNumber = String(line).slice(formula.index + formula[0].length).match(/\b\d{2,3}\b/);
+      if (count === 1 && !formula[3] && trailingNumber) return { section: section[1].toUpperCase(), marks: null };
+      // With one question, the section total is the per-question mark even if OCR mangled the factor.
+      const marks = count === 1 && total >= 1 && total <= 100 ? total : perQuestion;
+      return { section: section[1].toUpperCase(), marks };
+    }
+  }
+  // OCR often reads the multiplication sign and factor as "20 11 20 marks" for 20 x 1 = 20.
+  const noisyFormula = String(line).match(/\b(\d{1,2})\s+11\s+(\d{1,2})\s*marks?\b/i);
+  if (noisyFormula && Number(noisyFormula[1]) === Number(noisyFormula[2])) {
+    return { section: section[1].toUpperCase(), marks: 1 };
+  }
+  return { section: section[1].toUpperCase(), marks: null };
 }
 
 function parseQuestionPaper(pages, metadata = {}) {
   const questions = [];
   let current = null;
   let pendingNumber = null;
+  let sectionMarks = null;
   const flush = () => {
     if (!current) return;
     const cleaned = extractMarks(current.parts.join(' ').replace(/\s+/g, ' '));
     if (cleaned.text.length >= 12) questions.push({
-      text: cleaned.text.slice(0, 900), marks: cleaned.marks, page: current.page,
+      text: cleaned.text.slice(0, 900), marks: cleaned.marks ?? current.sectionMarks, markSource: cleaned.markSource || (current.sectionMarks ? 'section' : null), page: current.page,
       number: current.number
     });
     current = null;
@@ -100,23 +123,30 @@ function parseQuestionPaper(pages, metadata = {}) {
     for (const raw of String(page.text || '').split(/\r?\n/)) {
       const line = raw.trim();
       if (!line) continue;
+      const sectionRule = sectionMarkRule(line);
+      if (sectionRule) {
+        flush();
+        sectionMarks = sectionRule.marks;
+        pendingNumber = null;
+        continue;
+      }
       const start = questionStart(line);
       if (start) {
         if (pendingNumber?.number === start.number) pendingNumber = null;
         flush();
-        current = { number: start.number, page: page.number, parts: [start.text] };
+        current = { number: start.number, page: page.number, parts: [start.text], sectionMarks };
         continue;
       }
       const isolatedNumber = questionNumberOnly(line);
       if (isolatedNumber !== null && isolatedNumber > 0) {
         if (current?.number === isolatedNumber) continue;
         flush();
-        pendingNumber = { number: isolatedNumber, page: page.number, skippedLines: 0 };
+        pendingNumber = { number: isolatedNumber, page: page.number, skippedLines: 0, sectionMarks };
         continue;
       }
       if (pendingNumber) {
         if (isLikelyQuestionStemLine(line)) {
-          current = { number: pendingNumber.number, page: pendingNumber.page, parts: [line] };
+          current = { number: pendingNumber.number, page: pendingNumber.page, parts: [line], sectionMarks: pendingNumber.sectionMarks };
           pendingNumber = null;
         } else if (++pendingNumber.skippedLines > 2) {
           pendingNumber = null;
@@ -135,9 +165,10 @@ function parseQuestionPaper(pages, metadata = {}) {
     if (!duplicate) deduplicated.push(question);
     else if (question.text.length > duplicate.text.length) {
       duplicate.text = question.text;
-      duplicate.marks ??= question.marks;
-    } else {
-      duplicate.marks ??= question.marks;
+    }
+    if (duplicate && question.marks != null && (duplicate.marks == null || (question.markSource === 'explicit' && duplicate.markSource !== 'manual'))) {
+      duplicate.marks = question.marks;
+      duplicate.markSource = question.markSource;
     }
   }
   return {
@@ -180,7 +211,7 @@ function analyzeQuestionPapers(papers) {
         groups.push(group);
       }
       const marks = Number(question.marks);
-      group.occurrences.push({ paperIndex, questionIndex, number: Number(question.number) || null, paper: String(paper.filename || 'Question paper'), year: String(paper.year || ''), page: Number(question.page) || 1, marks: Number.isFinite(marks) && marks > 0 && marks <= 100 ? marks : null, markSource: question.markSource === 'manual' ? 'manual' : 'detected' });
+      group.occurrences.push({ paperIndex, questionIndex, number: Number(question.number) || null, paper: String(paper.filename || 'Question paper'), year: String(paper.year || ''), page: Number(question.page) || 1, marks: Number.isFinite(marks) && marks > 0 && marks <= 100 ? marks : null, markSource: question.markSource || 'detected' });
     }
   }
   const result = groups.map(group => {
