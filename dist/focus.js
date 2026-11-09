@@ -516,8 +516,12 @@
     root.classList.add('nx-m3-immersive'); document.documentElement.classList.add('nx-m3-lock');
     const grainientLayer = h('div', 'nx-m3-grainient-layer');
     root.prepend(grainientLayer);
+    const theme = getComputedStyle(document.documentElement);
+    const palette = token => theme.getPropertyValue(token).trim();
     unmountFullscreenBackground = window.NexoraGrainient?.mount(grainientLayer, {
-      color1: '#e58a6a', color2: '#473630', color3: '#201b19'
+      color1: palette('--nx-accent'),
+      color2: palette('--nx-surface'),
+      color3: palette('--nx-bg')
     }) || null;
     fsBtn.textContent = 'Exit full screen'; fsBtn.setAttribute('aria-pressed', 'true');
     startBtn.focus(); // keyboard focus moves into the timer, so Space / Enter start and pause it

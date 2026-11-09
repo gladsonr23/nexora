@@ -257,9 +257,9 @@ html.nx-m3-lock { overflow: hidden; }
 /* ---------- Focus extras ---------- */
 .nx-m3-timer-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .nx-m3-cycle { color: var(--nx-muted); font-size: 12px; font-weight: 600; }
-.nx-m3-immersive .nx-m3-ring-track { stroke: rgba(219, 235, 228, .24); }
+.nx-m3-immersive .nx-m3-ring-track { stroke: color-mix(in srgb, var(--nx-text) 18%, transparent); }
 .nx-m3-immersive .nx-m3-ring-bar,
-.nx-m3-immersive .nx-m3-ring.is-break .nx-m3-ring-bar { stroke: var(--nx-chart-4); }
+.nx-m3-immersive .nx-m3-ring.is-break .nx-m3-ring-bar { stroke: var(--nx-accent); }
 .nx-m3-immersive .nx-m3-clock {
   background: none; animation: none; -webkit-text-fill-color: var(--nx-text); color: var(--nx-text);
 }
