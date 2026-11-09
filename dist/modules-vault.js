@@ -16,6 +16,19 @@
   ];
   const state = { search: '', category: 'All', pendingFiles: [] };
 
+  window.addEventListener('nexora:open-vault-source', (event) => {
+    const materialId = String(event.detail?.materialId || '');
+    if (!materialId) return;
+    window.setTimeout(() => {
+      const row = [...document.querySelectorAll('.nxv-row[data-file-id]')]
+        .find(item => item.dataset.fileId === materialId);
+      if (!row) return;
+      row.scrollIntoView({behavior: 'smooth', block: 'center'});
+      row.classList.add('nxv-source-highlight');
+      window.setTimeout(() => row.classList.remove('nxv-source-highlight'), 2200);
+    }, 350);
+  });
+
   const escape = value => typeof escapeHtml === 'function'
     ? escapeHtml(value)
     : String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));

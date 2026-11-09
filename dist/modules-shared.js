@@ -163,6 +163,7 @@
       filename: record.name,
       subject: record.subject || 'General',
       category: record.category || 'Notes',
+      sessionId: record.sessionId || null,
       size: record.size || record.blob?.size || 0,
       type: record.type || record.blob?.type || 'application/pdf',
       createdAt: record.createdAt
@@ -186,7 +187,7 @@
   async function vaultMaterialPayload(materialId) {
     const record = await window.NexoraVaultFileStore?.get(materialId);
     if (!record?.blob) throw new Error('That file is no longer in this browser’s Vault.');
-    if (record.blob.size > 12_000_000) throw new Error('Choose a PDF smaller than 12 MB.');
+    if (record.blob.size > 12_000_000) throw new Error('Choose a file smaller than 12 MB.');
     const bytes = new Uint8Array(await record.blob.arrayBuffer());
     let binary = '';
     const chunkSize = 0x8000;

@@ -26,7 +26,7 @@ function makePdf(textOrPages = 'A selectable syllabus page with enough readable 
   return Buffer.from(source, 'binary');
 }
 
-function fakeRuntime(pageCount, {visibleInk = true, onViewport} = {}) {
+function fakeRuntime(pageCount, {visibleInk = true, onViewport, pageTexts = []} = {}) {
   return [
     {createCanvas(width, height) {
       const pixels = new Uint8ClampedArray(width * height * 4);
@@ -41,15 +41,22 @@ function fakeRuntime(pageCount, {visibleInk = true, onViewport} = {}) {
         }
       }
       const context = {getImageData: () => ({data: pixels})};
-      return {width, height, getContext: () => context, toBuffer: mime => Buffer.from(mime)};
+      return {
+        width,
+        height,
+        getContext: () => context,
+        toBuffer: mime => mime === 'image/png'
+          ? Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+          : Buffer.from([255, 216, 255]),
+      };
     }},
     {createWorker: async () => { throw new Error('Local OCR must not run in these strict-provider tests'); }},
     {getDocument() {
       const document = {
         numPages: pageCount,
-        async getPage() {
+        async getPage(number) {
           return {
-            getTextContent: async () => ({items: []}),
+            getTextContent: async () => ({items: pageTexts[number - 1] ? [{str: pageTexts[number - 1], hasEOL: false}] : []}),
             getViewport: ({scale}) => {
               onViewport?.(scale);
               return {width: Math.ceil(20 * scale), height: Math.ceil(20 * scale)};
@@ -131,6 +138,7 @@ test('retries a page with no NVIDIA detections using a higher-resolution PNG', a
   const pages = await extractPdfWithOcr(makePdf(''), {
     env: {NVIDIA_API_KEY: 'configured'},
     fallbackToLocalOcr: false,
+    runtime: fakeRuntime(1),
     recognizeImages: async (images, options) => {
       requests.push({images, options});
       return requests.length === 1 ? [''] : ['Text found on enhanced retry'];
@@ -171,6 +179,7 @@ test('fails promptly instead of starting local OCR when the preferred OCR provid
     extractPdfWithOcr(makePdf(''), {
       env: {NVIDIA_API_KEY: 'configured'},
       fallbackToLocalOcr: false,
+      runtime: fakeRuntime(1),
       recognizeImage: async () => { throw new Error('NVIDIA OCR timed out while reading this page.'); },
     }),
     /NVIDIA OCR timed out/
@@ -179,7 +188,7 @@ test('fails promptly instead of starting local OCR when the preferred OCR provid
 
 test('fails clearly when local fallback is disabled and no preferred OCR key is configured', async () => {
   await assert.rejects(
-    extractPdfWithOcr(makePdf(''), {env: {}, fallbackToLocalOcr: false}),
+    extractPdfWithOcr(makePdf(''), {env: {}, fallbackToLocalOcr: false, runtime: fakeRuntime(1)}),
     /NVIDIA OCR is not configured/
   );
 });
@@ -188,6 +197,7 @@ test('passes a shorter OCR timeout to the preferred provider when configured', a
   const pages = await extractPdfWithOcr(makePdf(''), {
     env: {NVIDIA_API_KEY: 'configured'},
     nvidiaTimeoutMs: 20000,
+    runtime: fakeRuntime(1),
     recognizeImages: async (images, options) => {
       assert.equal(options.timeoutMs, 20000);
       return ['Recognized scanned page text'];
@@ -205,6 +215,7 @@ test('batches scanned pages while preserving selectable page text and page order
     '',
   ]), {
     env: {NVIDIA_API_KEY: 'configured'},
+    runtime: fakeRuntime(3, {pageTexts: ['A selectable first page that should not be sent to the OCR provider.', '', '']}),
     recognizeImages: async images => {
       calls += 1;
       assert.equal(images.length, 2);

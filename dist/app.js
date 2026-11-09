@@ -1341,23 +1341,28 @@ function openCompanionChat() {
     companionChat.classList.add('is-open');
     $('#nx-chat-input').focus();
   });
+  window.NexoraRag?.sync().then(result => {
+    $('#nx-chat-source-status').textContent = result.materialCount
+      ? `${result.materialCount} Vault source${result.materialCount === 1 ? '' : 's'} indexed`
+      : 'General study help · no readable Vault sources';
+  }).catch(error => {
+    $('#nx-chat-source-status').textContent = error.message || 'Could not index Vault sources';
+  });
 }
 
 function refreshAssistantSourceStatus() {
   const status = $('#nx-chat-source-status');
-  const api = window.NexoraShared?.api;
-  if (!api) {
-    status.textContent = 'Assistant service unavailable';
-    return;
-  }
-  status.textContent = 'Checking Vault…';
-  api('/api/materials')
-    .then((materials) => {
-      const count = Array.isArray(materials) ? materials.length : 0;
-      status.textContent = count ? `${count} Vault source${count === 1 ? '' : 's'}` : 'No Vault sources yet';
-    })
-    .catch(() => { status.textContent = 'Sign in to load Vault sources'; });
+  status.textContent = 'Syncing Vault sources…';
+  window.NexoraRag?.sync().then(result => {
+    status.textContent = result.materialCount
+      ? `${result.materialCount} Vault source${result.materialCount === 1 ? '' : 's'} indexed`
+      : 'General study help · no readable Vault sources';
+  }).catch(error => { status.textContent = error.message || 'Could not sync Vault sources'; });
 }
+window.addEventListener('nexora:rag-error', event => {
+  const status = $('#nx-chat-source-status');
+  if (status) status.textContent = event.detail?.message || 'Vault sync failed';
+});
 
 function closeCompanionChat(restoreRoute = false) {
   companionChat.classList.remove('is-open');
@@ -1430,7 +1435,13 @@ $('#nx-chat-form').addEventListener('submit', (event) => {
   const history = assistantChatHistory.slice(-8);
   const api = window.NexoraShared?.api;
   const request = api
-    ? api('/api/assistant/chat', { method: 'POST', body: JSON.stringify({ question, history }) })
+    ? (async () => {
+      const indexed = await window.NexoraRag?.sync();
+      return api('/api/assistant/chat', {
+        method: 'POST',
+        body: JSON.stringify({question, history, sessionId: window.NexoraRag?.sessionId, hasMaterials: (indexed?.materialCount || 0) > 0}),
+      });
+    })()
     : Promise.reject(new Error('Assistant service is unavailable.'));
   request.then((result) => {
     assistantMessage.removeAttribute('aria-busy');
@@ -1441,14 +1452,33 @@ $('#nx-chat-form').addEventListener('submit', (event) => {
     assistantMessage.append(answer);
     assistantChatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: result.answer });
     assistantChatHistory.splice(0, Math.max(0, assistantChatHistory.length - 12));
-    const citations = document.createElement('small');
-    citations.className = 'nx-chat-citations';
-    citations.textContent = result.sources.map((source) => `[${source.number}] ${source.filename}`).join(' · ');
-    assistantMessage.append(citations);
+    const sources = Array.isArray(result.sources) ? result.sources : [];
+    if (sources.length) {
+      const citations = document.createElement('div');
+      citations.className = 'nx-chat-citations';
+      citations.setAttribute('aria-label', 'Answer sources');
+      for (const source of sources) {
+        const citation = document.createElement('button');
+        citation.type = 'button';
+        citation.className = 'nx-chat-citation';
+        citation.dataset.materialId = source.materialId || '';
+        if (Number.isInteger(source.pageNumber)) citation.dataset.pageNumber = String(source.pageNumber);
+        citation.textContent = `[${source.number}] ${source.filename}${Number.isInteger(source.pageNumber) ? ` · p. ${source.pageNumber}` : ''}`;
+        citation.addEventListener('click', () => {
+          closeCompanionChat(false);
+          window.dispatchEvent(new CustomEvent('nexora:open-vault-source', {detail: {materialId: source.materialId, pageNumber: source.pageNumber}}));
+          window.location.hash = '#vault';
+        });
+        citations.append(citation);
+      }
+      assistantMessage.append(citations);
+    }
     thought.setSteps(['Reading your question', 'Searching your Vault materials', 'Preparing a cited answer']);
     thought.setWorking(false);
     assistantMessage.append(thought.element);
-    $('#nx-chat-source-status').textContent = `${result.sources.length} study source${result.sources.length === 1 ? '' : 's'}`;
+    $('#nx-chat-source-status').textContent = result.grounded
+      ? `${sources.length} cited Vault excerpt${sources.length === 1 ? '' : 's'}`
+      : 'General study guidance · no Vault excerpts';
   }).catch((error) => {
     thought.setWorking(false);
     assistantMessage.removeAttribute('aria-busy');
