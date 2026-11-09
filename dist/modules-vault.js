@@ -49,6 +49,7 @@
         <button type="button" class="nx-primary-button" id="nxv-upload-btn">
           ${typeof icon === 'function' ? icon('upload') : '<span aria-hidden="true">＋</span>'}<span>Upload material</span>
         </button>
+        <button type="button" class="nxv-delete-all" id="nxv-delete-all-btn" disabled>Delete all</button>
         <input type="file" id="nxv-file-input" accept="application/pdf,.pdf" multiple hidden>
       </div>
       <div id="nxv-upload-panel"></div>
@@ -108,6 +109,7 @@
     });
 
     container.querySelector('#nxv-upload-btn').addEventListener('click', () => container.querySelector('#nxv-file-input').click());
+    container.querySelector('#nxv-delete-all-btn').addEventListener('click', () => deleteAllFiles(container));
     container.querySelector('#nxv-file-input').addEventListener('change', event => {
       const selected = [...event.target.files];
       const invalid = selected.find(file => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'));
@@ -177,6 +179,8 @@
 
     try {
       const files = await store.list();
+      const deleteAllButton = container.querySelector('#nxv-delete-all-btn');
+      if (deleteAllButton) deleteAllButton.disabled = files.length === 0;
       const query = state.search.trim().toLowerCase();
       const filtered = files.filter(file => {
         const categoryMatch = state.category === 'All' || file.category === state.category;
@@ -199,6 +203,37 @@
       mountDeleteButtons(container, host);
     } catch (error) {
       host.innerHTML = `<div class="nxm-error"><p>${escape(error.message || 'Could not load Vault materials.')}</p></div>`;
+    }
+  }
+
+  async function deleteAllFiles(container) {
+    const button = container.querySelector('#nxv-delete-all-btn');
+    if (!button || button.disabled) return;
+
+    try {
+      const files = await store.list();
+      if (!files.length) {
+        button.disabled = true;
+        return;
+      }
+      if (!confirm(`Delete all ${files.length} materials from this browser’s Vault? This cannot be undone.`)) return;
+
+      button.disabled = true;
+      button.textContent = 'Deleting…';
+      let deleted = 0;
+      for (const file of files) {
+        await store.remove(file.id);
+        deleted += 1;
+      }
+      notify(`${deleted} ${deleted === 1 ? 'material' : 'materials'} deleted from this browser’s Vault.`);
+    } catch (error) {
+      notify(error.message || 'Could not delete all Vault materials.');
+    } finally {
+      await refreshList(container);
+      const deleteAllButton = container.querySelector('#nxv-delete-all-btn');
+      if (deleteAllButton) {
+        deleteAllButton.textContent = 'Delete all';
+      }
     }
   }
 

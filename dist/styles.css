@@ -1714,10 +1714,11 @@ body,
 
 .nx-chat-page .nx-chat-messages { scroll-behavior: smooth; }
 .nx-chat-page .nx-chat-answer-copy { margin: 0; white-space: pre-wrap; }
+.nx-chat-answer { box-sizing: border-box; width: min(410px,100%); }
 .nx-chat-citations { display: flex; flex-wrap: wrap; gap: 6px; max-width: 100%; margin: 9px 0; color: var(--nx-muted); font-size: 11px; line-height: 1.5; }
 .nx-chat-citation { border: 1px solid var(--nx-line); border-radius: 999px; padding: 4px 9px; background: var(--nx-surface); color: var(--nx-accent); font: inherit; cursor: pointer; }
 .nx-chat-citation:hover, .nx-chat-citation:focus-visible { border-color: var(--nx-accent); outline: none; }
-.nx-chat-answer .thought-line { margin-top: 6px; color: var(--nx-muted); font-size: 12px; }
+.nx-chat-answer .thought-line { width: 100%; margin-top: 6px; align-items: stretch; color: var(--nx-muted); font-size: 12px; }
 .nx-chat-answer .lattice-loader { margin-top: 5px; color: var(--nx-muted); }
 .nx-chat-answer.is-error { width: fit-content; max-width: min(410px, 100%); padding: 10px 13px; font-size: 13px; }
 .nx-chat-answer.is-error .nx-chat-answer-copy { line-height: 1.45; }

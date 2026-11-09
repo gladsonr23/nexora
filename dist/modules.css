@@ -98,9 +98,12 @@
 #nx-module.nx-vault-active .nx-module-title-row { justify-content: center; }
 #nx-module.nx-vault-active .nx-module-description { margin-inline: auto; text-align: center; }
 #nx-module.nx-vault-active .nx-module-placeholder { text-align: center; }
-#nx-module.nx-vault-active .nxv-toolbar { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
-#nx-module.nx-vault-active .nxv-search { flex: 0 1 440px; min-width: min(100%,260px); }
+#nx-module.nx-vault-active .nxv-toolbar { display: grid; width: 100%; grid-template-columns: minmax(240px,1fr) minmax(220px,auto) auto auto; justify-content: stretch; gap: 14px; align-items: center; }
+#nx-module.nx-vault-active .nxv-search { min-width: 0; }
 #nx-module.nx-vault-active .nxv-filter-control { text-align: left; }
+#nx-module.nx-vault-active .nxv-delete-all { min-height: 42px; padding: 9px 14px; border: 1px solid color-mix(in srgb,var(--nx-error) 55%,var(--nx-line)); border-radius: 9px; background: transparent; color: var(--nx-error); font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+#nx-module.nx-vault-active .nxv-delete-all:hover:not(:disabled) { background: color-mix(in srgb,var(--nx-error) 10%,transparent); border-color: var(--nx-error); }
+#nx-module.nx-vault-active .nxv-delete-all:disabled { opacity: .45; cursor: not-allowed; }
 #nx-module.nx-vault-active .nxv-upload-panel { width: min(100%,900px); margin-inline: auto; text-align: left; }
 #nx-module.nx-vault-active .nxv-upload-note { text-align: center; }
 #nx-module.nx-vault-active #nxv-list .nxm-empty { justify-items: center; margin-inline: auto; text-align: center; }
@@ -139,11 +142,17 @@
   #nx-module.nx-vault-active .nxv-search { min-width: 0; }
   #nx-module.nx-vault-active .nxv-filter-control { justify-content: space-between; }
   #nx-module.nx-vault-active .nxv-toolbar > .nx-primary-button { width: 100%; }
+  #nx-module.nx-vault-active .nxv-delete-all { width: 100%; }
 }
 
 @media (min-width: 641px) and (max-width: 900px) {
   .nxv-toolbar { grid-template-columns: minmax(0,1fr) auto; }
   .nxv-search { grid-column: 1 / -1; }
+  #nx-module.nx-vault-active .nxv-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #nx-module.nx-vault-active .nxv-search,
+  #nx-module.nx-vault-active .nxv-filter-control { grid-column: 1 / -1; }
+  #nx-module.nx-vault-active .nxv-toolbar > .nx-primary-button,
+  #nx-module.nx-vault-active .nxv-delete-all { width: 100%; }
 }
 
 @media (max-width: 860px) {
