@@ -7,6 +7,18 @@ const OCR_BATCH_SIZE = 4;
 const OCR_BATCH_CONCURRENCY = 2;
 let pdfJsPromise;
 
+function hasVisibleInk(context, width, height) {
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let dark = 0;
+  let sampled = 0;
+  for (let index = 0; index < pixels.length; index += 64) {
+    const luminance = pixels[index] * 0.299 + pixels[index + 1] * 0.587 + pixels[index + 2] * 0.114;
+    if (luminance < 245) dark += 1;
+    sampled += 1;
+  }
+  return sampled > 0 && dark / sampled >= 0.001;
+}
+
 function loadPdfJs() {
   if (!pdfJsPromise) {
     pdfJsPromise = Promise.all([
@@ -72,7 +84,12 @@ async function extractPdfWithOcr(bytes, {
 
         const viewport = page.getViewport({scale: 1.6});
         const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-        await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+        const context = canvas.getContext('2d');
+        await page.render({canvasContext: context, viewport}).promise;
+        if (!hasVisibleInk(context, canvas.width, canvas.height)) {
+          pages[number - 1] = {number, text: '', source: 'blank', warnings: []};
+          continue;
+        }
         scannedPages.push({number, imageBytes: canvas.toBuffer('image/jpeg', 0.85)});
       } finally {
         page.cleanup();

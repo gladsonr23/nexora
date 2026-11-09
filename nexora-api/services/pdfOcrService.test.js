@@ -51,6 +51,18 @@ test('sends an image-only scanned page to the configured OCR provider', async ()
   assert.deepEqual(getOcrProviders(pages), ['nvidia']);
 });
 
+test('skips a blank scanned page without calling a remote or local OCR provider', async () => {
+  let calls = 0;
+  const pages = await extractPdfWithOcr(makePdf(''), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    recognizeImage: async () => { calls += 1; return ''; },
+    recognizeImages: async () => { calls += 1; return ['']; },
+  });
+  assert.equal(calls, 0);
+  assert.equal(pages[0].text, '');
+  assert.equal(pages[0].source, 'blank');
+});
+
 test('retries a page with no NVIDIA detections using a higher-resolution PNG', async () => {
   const requests = [];
   const pages = await extractPdfWithOcr(makePdf(''), {

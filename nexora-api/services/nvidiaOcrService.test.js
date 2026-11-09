@@ -89,3 +89,27 @@ test('does not include API credentials in provider errors', async () => {
     error => error instanceof NvidiaOcrError && !error.message.includes('do-not-leak') && /NVIDIA OCR failed/.test(error.message),
   );
 });
+
+test('preserves network failure details and the original cause without exposing credentials', async () => {
+  const cause = Object.assign(new Error('socket hang up'), {code: 'ECONNRESET', hostname: 'ai.api.nvidia.com'});
+  const originalError = Object.assign(new TypeError('fetch failed', {cause}), {code: 'FETCH_FAILED'});
+  const originalConsoleError = console.error;
+  let logged;
+  console.error = (...args) => { logged = args; };
+  try {
+    await assert.rejects(
+      recognizeNvidiaOcrImage(Buffer.from('png'), {
+        apiKey: 'do-not-leak',
+        fetchImpl: async () => { throw originalError; },
+      }),
+      error => error instanceof NvidiaOcrError &&
+        error.cause === originalError &&
+        /network request failed/.test(error.message) &&
+        /ECONNRESET/.test(error.message) &&
+        !error.message.includes('do-not-leak'),
+    );
+    assert.equal(logged?.[1]?.cause, cause);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});

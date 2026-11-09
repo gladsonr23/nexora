@@ -1,8 +1,8 @@
 const NVIDIA_OCR_URL = 'https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-ocr-v2';
 
 class NvidiaOcrError extends Error {
-  constructor(message, status = 502) {
-    super(message);
+  constructor(message, status = 502, options = {}) {
+    super(message, options);
     this.name = 'NvidiaOcrError';
     this.status = status;
   }
@@ -74,7 +74,18 @@ async function recognizeNvidiaOcrImages(imageBytesList, {
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
-    throw new NvidiaOcrError(error?.name === 'TimeoutError' ? 'NVIDIA OCR timed out while reading this page.' : 'Could not reach NVIDIA OCR.', 502);
+    const cause = error?.cause;
+    const code = cause?.code || error?.code || '';
+    const detail = [error?.message || 'request failed', code, cause?.message].filter(Boolean).join(' | ');
+    const timedOut = error?.name === 'TimeoutError' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT';
+    console.error('[NVIDIA OCR] network request failed', {
+      message: error?.message,
+      cause,
+      code,
+      hostname: cause?.hostname,
+      syscall: cause?.syscall,
+    });
+    throw new NvidiaOcrError(`NVIDIA OCR ${timedOut ? 'timed out' : 'network request failed'}: ${detail}`, 502, {cause: error});
   }
 
   let payload;
