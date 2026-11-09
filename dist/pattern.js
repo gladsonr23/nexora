@@ -67,7 +67,7 @@
   const sortPapersByYear = values => values.sort((a,b)=>(Number(b.year)||0)-(Number(a.year)||0) || String(a.filename).localeCompare(String(b.filename)));
   const reportActions=node('div','nx-pattern-report-actions');
   const saveReportButton=node('button','nx-primary-button','Save report to Vault'); saveReportButton.type='button';
-  const printReportButton=node('button','nx-secondary-button','Open / Print PDF'); printReportButton.type='button';
+  const printReportButton=node('button','nx-secondary-button','Preview PDF'); printReportButton.type='button';
   const downloadReportButton=node('button','nx-secondary-button','Download PDF'); downloadReportButton.type='button';
   reportActions.append(saveReportButton,printReportButton,downloadReportButton);
   results.querySelector('.nx-pattern-results-head').after(reportActions);
@@ -79,17 +79,40 @@
       const label=topicOf(group); const item=topicMap.get(label) || {topic:label,count:0,marks:0};
       item.count+=group.count; item.marks+=group.totalMarks; topicMap.set(label,item);
     });
-    const years=[...new Set(papers.map(paper=>paper.year).filter(year=>/^\d{4}$/.test(year)))].sort();
-    const trend=years.map(year => { const entries=analysis.groups.flatMap(group=>group.occurrences.filter(item=>item.year===year).map(()=>group)); return {year,value:entries.length?Math.round(100*entries.filter(group=>group.paperCount>1).length/entries.length):0}; });
+    const trend=trendByYear();
     return {id:crypto.randomUUID(),title:'Prof Pattern Analysis',createdAt:new Date().toISOString(),sessionId:window.NexoraSession?.id || null,papers:structuredClone(papers),analysis:structuredClone(analysis),topics:[...topicMap.values()].sort((a,b)=>b.marks-a.marks||b.count-a.count),trend,aiTopics:[...aiTopics.entries()]};
   }
   function patternPdf(report) { return window.NexoraPdf.createPatternReportPdf(report,window.jspdf?.jsPDF); }
-  function openPatternPdf(report) {
-    const viewer=window.open('','_blank');
-    if (!viewer) return setError('Allow pop-ups to open the printable PDF, or use Download PDF.');
-    try { const url=URL.createObjectURL(patternPdf(report).output('blob')); viewer.location.href=url; }
-    catch (problem) { viewer.close(); setError(problem.message || 'Could not open the PDF report.'); }
+  const previewDialog=document.createElement('dialog');
+  previewDialog.className='nx-pdf-preview';
+  previewDialog.setAttribute('aria-label','Prof Pattern Detector PDF preview');
+  previewDialog.innerHTML='<div class="nx-pdf-preview-shell"><header class="nx-pdf-preview-toolbar"><strong class="nx-pdf-preview-title"></strong><button type="button" data-pdf-close>Back to report</button></header><div id="nx-pattern-pdf-react-root"></div></div>';
+  document.body.append(previewDialog);
+  let unmountPdfViewer=null;
+  async function openPatternPdf(report) {
+    try {
+      const data=new Uint8Array(patternPdf(report).output('arraybuffer'));
+      previewDialog.querySelector('.nx-pdf-preview-title').textContent=window.NexoraPdf.patternFilename(report);
+      previewDialog.showModal();
+      const viewer=await import('./pdf-viewer-react.js?v=3');
+      if(!previewDialog.open)return;
+      unmountPdfViewer=viewer.mountPdfViewer(previewDialog.querySelector('#nx-pattern-pdf-react-root'),{data,fileName:window.NexoraPdf.patternFilename(report)});
+    } catch (problem) {
+      if(previewDialog.open)previewDialog.close();
+      setError(problem.message || 'Could not open the PDF preview.');
+    }
   }
+  previewDialog.querySelector('[data-pdf-close]').addEventListener('click',()=>previewDialog.close());
+  document.addEventListener('pointerdown',event=>{
+    if(!previewDialog.open)return;
+    const bounds=previewDialog.getBoundingClientRect();
+    if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)previewDialog.close();
+  },true);
+  previewDialog.addEventListener('close',()=>{
+    unmountPdfViewer?.();
+    unmountPdfViewer=null;
+    previewDialog.querySelector('#nx-pattern-pdf-react-root').replaceChildren();
+  });
   function downloadPatternPdf(report) { try { patternPdf(report).save(window.NexoraPdf.patternFilename(report)); } catch (problem) { setError(problem.message || 'Could not download the PDF report.'); } }
 
   function renderPapers() {
@@ -229,12 +252,8 @@
   function renderTrend() {
     const target = $('#nx-pattern-trend-chart');
     target.replaceChildren();
-    const years = [...new Set(papers.map(paper => paper.year).filter(year => /^\d{4}$/.test(year)))].sort();
-    if (years.length < 2) return target.append(node('p','nx-pattern-empty','Add papers from at least two distinct years to see a time trend.'));
-    const series = years.map(year => {
-      const entries = analysis.groups.flatMap(group => group.occurrences.filter(item => item.year === year).map(() => group));
-      return {year,value:entries.length ? Math.round(100*entries.filter(group => group.paperCount > 1).length/entries.length) : 0};
-    });
+    const series=trendByYear();
+    if (series.length < 2) return target.append(node('p','nx-pattern-empty','Add papers from at least two distinct years to see a time trend.'));
     const svg = svgEl('svg',{viewBox:'0 0 600 210',role:'img','aria-label':`Repeated question share by year: ${series.map(item => `${item.year} ${item.value}%`).join(', ')}`});
     for (const level of [0,25,50,75,100]) {
       const y = 170-level*1.4;
@@ -247,9 +266,18 @@
     points.forEach(point => {
       const circle = svgEl('circle',{cx:point.x,cy:point.y,r:6,tabindex:0,class:'nx-chart-point','aria-label':`${point.year}: ${point.value}% repeated`});
       const title = svgEl('title'); title.textContent = `${point.year}: ${point.value}% repeated`; circle.append(title); svg.append(circle);
+      const valueLabel=svgEl('text',{x:point.x,y:Math.max(22,point.y-13),'text-anchor':'middle',class:'nx-chart-value'}); valueLabel.textContent=`${point.value}%`; svg.append(valueLabel);
       const label = svgEl('text',{x:point.x,y:195,'text-anchor':'middle',class:'nx-chart-label'}); label.textContent=point.year; svg.append(label);
     });
     target.append(svg);
+  }
+  function trendByYear() {
+    const years=[...new Set(papers.map(paper=>paper.year).filter(year=>/^\d{4}$/.test(year)))].sort();
+    return years.map(year=>{
+      const entries=analysis.groups.flatMap(group=>[...new Set(group.occurrences.filter(item=>item.year===year).map(item=>item.paperIndex))].map(()=>group));
+      const repeated=entries.filter(group=>group.paperCount>1).length;
+      return {year,value:entries.length?Math.round(100*repeated/entries.length):0};
+    });
   }
   function renderShare() {
     const target = $('#nx-pattern-share-chart'); target.replaceChildren();

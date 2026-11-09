@@ -184,6 +184,10 @@
     function fitLine(value,maxWidth,size=7,bold=false) { doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);let label=printable(value);if(doc.getTextWidth(label)<=maxWidth)return label;while(label.length>1&&doc.getTextWidth(`${label}...`)>maxWidth)label=label.slice(0,-1);return `${label.trim()}...`; }
     function panel(x,yPos,w,h,title,subtitle) { doc.setFillColor(249,252,252);doc.setDrawColor(...line);doc.setLineWidth(.25);doc.roundedRect(x,yPos,w,h,2.5,2.5,'FD');text(title,x+5,yPos+8,w-10,10,ink,true);text(subtitle,x+5,yPos+14,w-10,7.2,muted); }
     function barChart(x,yPos,w,h,items,unit) {
+      if (!items.length) {
+        text(unit==='marks'?'No marks were extracted.':'No repeated questions found.',x+5,yPos+34,w-10,8,muted);
+        return;
+      }
       const maximum=Math.max(1,...items.map(item=>item.value)); const chartTop=yPos+24, row=Math.min(10,(h-28)/Math.max(items.length,1));
       items.slice(0,5).forEach((item,index)=>{const top=chartTop+index*row;const value=`${item.value} ${unit}`;doc.setFont('helvetica','bold');doc.setFontSize(6.2);const valueWidth=doc.getTextWidth(value);doc.setTextColor(...teal);doc.text(value,x+w-5,top,{align:'right'});doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(...ink);doc.text(fitLine(item.label,w-valueWidth-16,6.2),x+5,top);const trackWidth=w-10;doc.setFillColor(228,238,240);doc.roundedRect(x+5,top+2,trackWidth,2.7,1,1,'F');doc.setFillColor(...(index===0?yellow:teal));doc.roundedRect(x+5,top+2,Math.max(2,trackWidth*item.value/maximum),2.7,1,1,'F');});
     }
@@ -193,9 +197,13 @@
       if(items.length<2){text('Add papers from at least two years.',x+9,yPos+39,w-18,7.5,muted);return;}
       const points=items.map((item,index)=>({x:left+(right-left)*index/(items.length-1),y:base-(base-top)*item.value/100,...item}));
       doc.setDrawColor(...teal);doc.setLineWidth(.8);for(let i=1;i<points.length;i++)doc.line(points[i-1].x,points[i-1].y,points[i].x,points[i].y);
-      points.forEach(point=>{doc.setFillColor(...teal);doc.circle(point.x,point.y,1.3,'F');text(point.year,point.x-6,base+5,12,5.8,muted);});
+      points.forEach(point=>{doc.setFillColor(...teal);doc.circle(point.x,point.y,1.3,'F');text(`${point.value}%`,point.x-7,Math.max(top+4,point.y-3),14,6,teal,true);text(point.year,point.x-6,base+5,12,5.8,muted);});
     }
     function pieChart(x,yPos,w,h,items) {
+      if (!items.length) {
+        text('Add topic labels to see the topic share.',x+8,yPos+38,w-16,7.5,muted);
+        return;
+      }
       const slices=items.slice(0,4).map(item=>({label:item.topic,value:item.count}));const other=items.slice(4).reduce((sum,item)=>sum+item.count,0);if(other)slices.push({label:'Other topics',value:other});
       const total=slices.reduce((sum,item)=>sum+item.value,0)||1,cx=x+25,cy=yPos+44,r=14,palette=[teal,yellow,[59,157,140],[147,109,178],[139,154,161]];let angle=-Math.PI/2;
       slices.forEach((slice,index)=>{const end=angle+Math.PI*2*slice.value/total;doc.setFillColor(...palette[index]);const steps=Math.max(2,Math.ceil((end-angle)/(Math.PI/24)));for(let step=0;step<steps;step++){const a=angle+(end-angle)*step/steps,b=angle+(end-angle)*(step+1)/steps;doc.triangle(cx,cy,cx+Math.cos(a)*r,cy+Math.sin(a)*r,cx+Math.cos(b)*r,cy+Math.sin(b)*r,'F');}angle=end;});
@@ -214,11 +222,12 @@
     barChart(margin+cellW+7,y,cellW,cellH,topics.filter(item=>item.marks>0).slice(0,5).map(item=>({label:item.topic,value:item.marks})),'marks');y+=cellH+7;
     panel(margin,y,cellW,cellH,'Repeated questions over time','Share matching another paper');trendChart(margin,y,cellW,cellH,trend);
     panel(margin+cellW+7,y,cellW,cellH,'Topic share','Share of detected occurrences');pieChart(margin+cellW+7,y,cellW,cellH,topics);y+=cellH+9;
-    ensure(28);text('Included papers',margin,y,width-2*margin,12,ink,true);y+=7;
-    papers.forEach(paper=>{ensure(7);y+=text(`${paper.year || 'No year'}  |  ${paper.filename}  |  ${paper.questions?.length || 0} questions`,margin,y,width-2*margin,7.5,muted)+1;});
-    newPage('QUESTION ANALYSIS');
-    text('Ranked question groups',margin,y,width-2*margin,18,ink,true);y+=11;
-    groups.forEach((group,index)=>{const lines=doc.splitTextToSize(printable(group.question),width-2*margin-8);const need=18+lines.length*4;ensure(need);doc.setFillColor(249,252,252);doc.setDrawColor(...line);doc.roundedRect(margin,y-4,width-2*margin,need-2,2,2,'FD');text(String(index+1).padStart(2,'0'),margin+4,y+3,10,7,teal,true);text(group.question,margin+14,y+3,width-2*margin-23,8.3,ink,true);const metaY=y+8+lines.length*4;text(`${group.paperCount}/${report.analysis.paperCount} papers  |  ${group.count} occurrences  |  ${group.marksKnown?`${group.totalMarks} total marks`:'marks not found'}  |  ${printable(group.topic)}`,margin+14,metaY,width-2*margin-23,6.6,muted);y+=need+3;});
+    newPage('PAPERS & QUESTION ANALYSIS');
+    text('Included papers',margin,y,width-2*margin,12,ink,true);y+=7;
+    papers.forEach(paper=>{ensure(7,'PAPERS & QUESTION ANALYSIS');y+=text(`${paper.year || 'No year'}  |  ${paper.filename}  |  ${paper.questions?.length || 0} questions`,margin,y,width-2*margin,7.5,muted)+1;});
+    y+=5;ensure(20,'PAPERS & QUESTION ANALYSIS');
+    text('Ranked question groups',margin,y,width-2*margin,15,ink,true);y+=9;
+    groups.forEach((group,index)=>{const lines=doc.splitTextToSize(printable(group.question),width-2*margin-8);const need=18+lines.length*4;ensure(need,'PAPERS & QUESTION ANALYSIS');doc.setFillColor(249,252,252);doc.setDrawColor(...line);doc.roundedRect(margin,y-4,width-2*margin,need-2,2,2,'FD');text(String(index+1).padStart(2,'0'),margin+4,y+3,10,7,teal,true);text(group.question,margin+14,y+3,width-2*margin-23,8.3,ink,true);const metaY=y+8+lines.length*4;text(`${group.paperCount}/${report.analysis.paperCount} papers  |  ${group.count} occurrences  |  ${group.marksKnown?`${group.totalMarks} total marks`:'marks not found'}  |  ${printable(group.topic)}`,margin+14,metaY,width-2*margin-23,6.6,muted);y+=need+3;});
     const pageCount=doc.getNumberOfPages();for(let page=1;page<=pageCount;page++){doc.setPage(page);doc.setDrawColor(...line);doc.line(margin,height-15,width-margin,height-15);text('Nexora Prof Pattern Detector',margin,height-9,width-2*margin,7,muted);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);doc.text(`${page} / ${pageCount}`,width-margin,height-9,{align:'right'});}
     doc.setProperties({title:'Nexora Prof Pattern Analysis',subject:'Historical question-paper analysis',creator:'Nexora'});
     return doc;

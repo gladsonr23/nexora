@@ -126,7 +126,17 @@
 .nx-pattern-ai-row p { margin: 0; color: var(--nx-muted); font-size: 12px; }
 .nx-pattern-report-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 18px; }
 .nx-pattern-card svg { display: block; width: 100%; max-height: 235px; }
+.nx-chart-grid { stroke: var(--nx-line); stroke-width: 1; }
+.nx-chart-label { fill: var(--nx-muted); font-family: Arial, sans-serif; font-size: 12px; }
+.nx-chart-area { fill: var(--nx-accent); fill-opacity: .12; }
+.nx-chart-line { fill: none; stroke: var(--nx-accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.nx-chart-point { fill: var(--nx-secondary); stroke: var(--nx-surface); stroke-width: 3; cursor: pointer; }
+.nx-chart-point:hover, .nx-chart-point:focus-visible { fill: var(--nx-accent); }
+.nx-chart-value { fill: var(--nx-text); font-family: Arial, sans-serif; font-size: 12px; font-weight: 700; }
+.nx-chart-center { fill: var(--nx-text); font-family: Arial, sans-serif; font-size: 24px; font-weight: 700; }
 .nx-chart-point:focus-visible, .nx-pattern-share circle:focus-visible { outline: 3px solid var(--nx-ring); }
+.nx-pattern-report-actions { align-items: center; }
+#nx-pattern-pdf-react-root { min-height: 0; }
 .nx-pattern-share { display: grid; grid-template-columns: minmax(160px,220px) 1fr; gap: 14px; align-items: center; }
 .nx-pattern-legend { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
 .nx-pattern-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }

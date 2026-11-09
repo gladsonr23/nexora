@@ -55,11 +55,7 @@ router.post('/pattern/extract',express.raw({type:'*/*',limit:'4mb'}),async(req,r
     const ocrWarnings=pages.flatMap(page=>page.warnings||[]);
     const providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
     if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.',processing:{warnings:ocrWarnings}});
-    const numberCounts=new Map();
-    for(const question of paper.questions)numberCounts.set(question.number,(numberCounts.get(question.number)||0)+1);
-    const repeatedNumbers=[...numberCounts].filter(([,count])=>count>1).map(([number])=>number);
     const parseWarnings=[...resolutionRetryWarnings];
-    if(repeatedNumbers.length)parseWarnings.push(`OCR detected repeated question numbers (${repeatedNumbers.join(', ')}); review this paper before relying on its frequency analysis.`);
     if(scanned&&paper.questions.length<12)parseWarnings.push(`Only ${paper.questions.length} question blocks were detected; this scanned paper may be incomplete.`);
     paper.id=require('node:crypto').randomUUID();paper.addedAt=new Date().toISOString();paper.processing=scanned?`${providers.map(provider=>provider==='nvidia'?'NVIDIA Nemotron OCR':'Local Tesseract').join(' + ')} OCR`:'Selectable PDF text';
     return res.json({paper,processing:{scanned,providers,warnings:[...ocrWarnings,...parseWarnings],unreadablePages:pages.filter(page=>page.source==='unreadable').map(page=>page.number),ocrAgreement:pages.filter(page=>page.source==='ocr').map(page=>page.agreement)}});
