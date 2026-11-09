@@ -14,7 +14,7 @@
     'Question Banks',
     'Other',
   ];
-  const state = { search: '', category: 'All', pendingFiles: [] };
+  const state = { search: '', category: 'All', pendingFiles: [], selectionMode: false, selectedIds: [] };
 
   window.addEventListener('nexora:open-vault-source', (event) => {
     const materialId = String(event.detail?.materialId || '');
@@ -49,6 +49,8 @@
         <button type="button" class="nx-primary-button" id="nxv-upload-btn">
           ${typeof icon === 'function' ? icon('upload') : '<span aria-hidden="true">＋</span>'}<span>Upload material</span>
         </button>
+        <button type="button" class="nxv-select-delete" id="nxv-select-delete-btn" aria-pressed="false">Select to delete</button>
+        <button type="button" class="nxv-delete-selected" id="nxv-delete-selected-btn" hidden disabled>Delete selected (0)</button>
         <button type="button" class="nxv-delete-all" id="nxv-delete-all-btn" disabled>Delete all</button>
         <input type="file" id="nxv-file-input" accept="application/pdf,.pdf" multiple hidden>
       </div>
@@ -73,6 +75,7 @@
       textColor: 'var(--nx-text)',
       onChange(value) {
         state.category = value;
+        state.selectedIds = [];
         renderCategorySelect(element, container);
         refreshList(container);
       },
@@ -86,6 +89,7 @@
     element.innerHTML = `<select aria-label="Filter Vault materials by category">${options.map(option => `<option value="${escape(option)}" ${option === state.category ? 'selected' : ''}>${escape(option)}</option>`).join('')}</select>`;
     element.querySelector('select').addEventListener('change', event => {
       state.category = event.target.value;
+      state.selectedIds = [];
       refreshList(container);
     });
   }
@@ -97,6 +101,8 @@
       return;
     }
 
+    state.selectionMode = false;
+    state.selectedIds = [];
     const previousCategorySelect = container.querySelector('#nxv-filter-select');
     if (previousCategorySelect) window.NexoraGlideSelect?.unmount?.(previousCategorySelect);
     container.innerHTML = shell();
@@ -105,10 +111,19 @@
     search.value = state.search;
     search.addEventListener('input', () => {
       state.search = search.value;
+      state.selectedIds = [];
       refreshList(container);
     });
 
     container.querySelector('#nxv-upload-btn').addEventListener('click', () => container.querySelector('#nxv-file-input').click());
+    container.querySelector('#nxv-select-delete-btn').addEventListener('click', event => {
+      state.selectionMode = !state.selectionMode;
+      state.selectedIds = [];
+      event.currentTarget.setAttribute('aria-pressed', String(state.selectionMode));
+      event.currentTarget.textContent = state.selectionMode ? 'Cancel selection' : 'Select to delete';
+      refreshList(container);
+    });
+    container.querySelector('#nxv-delete-selected-btn').addEventListener('click', () => deleteSelectedFiles(container));
     container.querySelector('#nxv-delete-all-btn').addEventListener('click', () => deleteAllFiles(container));
     container.querySelector('#nxv-file-input').addEventListener('change', event => {
       const selected = [...event.target.files];
@@ -179,8 +194,10 @@
 
     try {
       const files = await store.list();
+      state.selectedIds = state.selectedIds.filter(id => files.some(file => file.id === id));
       const deleteAllButton = container.querySelector('#nxv-delete-all-btn');
       if (deleteAllButton) deleteAllButton.disabled = files.length === 0;
+      updateSelectionControls(container);
       const query = state.search.trim().toLowerCase();
       const filtered = files.filter(file => {
         const categoryMatch = state.category === 'All' || file.category === state.category;
@@ -198,11 +215,52 @@
         return;
       }
 
-      host.innerHTML = `<div class="nxv-list">${filtered.map(renderRow).join('')}</div>`;
+      host.innerHTML = `<div class="nxv-list${state.selectionMode ? ' nxv-list--selection' : ''}">${filtered.map(renderRow).join('')}</div>`;
       wireRowActions(container, host);
       mountDeleteButtons(container, host);
     } catch (error) {
       host.innerHTML = `<div class="nxm-error"><p>${escape(error.message || 'Could not load Vault materials.')}</p></div>`;
+    }
+  }
+
+  function updateSelectionControls(container) {
+    const toggle = container.querySelector('#nxv-select-delete-btn');
+    const remove = container.querySelector('#nxv-delete-selected-btn');
+    if (!toggle || !remove) return;
+    toggle.textContent = state.selectionMode ? 'Cancel selection' : 'Select to delete';
+    toggle.setAttribute('aria-pressed', String(state.selectionMode));
+    remove.hidden = !state.selectionMode;
+    remove.disabled = state.selectedIds.length === 0;
+    remove.textContent = `Delete selected${state.selectedIds.length ? ` (${state.selectedIds.length})` : ''}`;
+  }
+
+  async function deleteSelectedFiles(container) {
+    const remove = container.querySelector('#nxv-delete-selected-btn');
+    const ids = [...state.selectedIds];
+    if (!remove || remove.disabled || !ids.length) return;
+
+    try {
+      const files = (await store.list()).filter(file => ids.includes(file.id));
+      if (!files.length) {
+        state.selectedIds = [];
+        return;
+      }
+      if (!confirm(`Delete ${files.length} selected ${files.length === 1 ? 'material' : 'materials'} from this browser’s Vault? This cannot be undone.`)) return;
+
+      remove.disabled = true;
+      remove.textContent = 'Deleting…';
+      let deleted = 0;
+      for (const file of files) {
+        await store.remove(file.id);
+        deleted += 1;
+      }
+      state.selectedIds = [];
+      state.selectionMode = false;
+      notify(`${deleted} selected ${deleted === 1 ? 'material' : 'materials'} deleted from this browser’s Vault.`);
+    } catch (error) {
+      notify(error.message || 'Could not delete the selected materials.');
+    } finally {
+      await refreshList(container);
     }
   }
 
@@ -240,6 +298,7 @@
   function renderRow(file) {
     return `
       <article class="nxv-row" data-file-id="${escape(file.id)}">
+        ${state.selectionMode ? `<label class="nxv-select-control"><input type="checkbox" data-action="toggle-select" aria-label="Select ${escape(file.name)} for deletion" ${state.selectedIds.includes(file.id) ? 'checked' : ''}></label>` : ''}
         <span class="nxv-row-icon" aria-hidden="true">▤</span>
         <div class="nxv-row-main">
           <strong>${escape(file.name)}</strong>
@@ -319,10 +378,21 @@
   }
 
   function wireRowActions(container, host) {
-    host.addEventListener('click', async event => {
+    host.onchange = event => {
+      const checkbox = event.target.closest('input[data-action="toggle-select"]');
+      const row = event.target.closest('[data-file-id]');
+      if (!checkbox || !row) return;
+      const selected = new Set(state.selectedIds);
+      if (checkbox.checked) selected.add(row.dataset.fileId);
+      else selected.delete(row.dataset.fileId);
+      state.selectedIds = [...selected];
+      updateSelectionControls(container);
+    };
+
+    host.onclick = async event => {
       const button = event.target.closest('[data-action]');
       const row = event.target.closest('[data-file-id]');
-      if (!button || !row) return;
+      if (!button || !row || button.dataset.action === 'toggle-select') return;
       const file = await store.get(row.dataset.fileId);
       if (!file) return;
 
@@ -351,7 +421,7 @@
       } catch (error) {
         notify(error.message || 'Could not update this material.');
       }
-    });
+    };
   }
 
   window.NexoraVault = { mount };
