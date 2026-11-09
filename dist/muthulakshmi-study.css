@@ -108,6 +108,12 @@
 .nx-pattern-badges { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0 0 27px; }
 .nx-pattern-badges span { padding: 5px 8px; border: 1px solid var(--nx-line); border-radius: 999px; color: var(--nx-muted); font-size: 11px; }
 .nx-pattern-sources-line { margin: 13px 0 0 27px; color: var(--nx-muted); font-size: 12px; line-height: 1.6; }
+.nx-pattern-marks-details { margin: 13px 0 0 27px; }
+.nx-pattern-marks-details summary { color: var(--nx-muted); font-size: 12px; cursor: pointer; }
+.nx-pattern-mark-list { display: grid; gap: 8px; margin-top: 10px; }
+.nx-pattern-mark-row { display: grid; grid-template-columns: minmax(0,1fr) 110px; align-items: center; gap: 12px; color: var(--nx-muted); font-size: 12px; }
+.nx-pattern-mark-row input { width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid var(--nx-line); border-radius: 7px; background: var(--nx-bg); color: var(--nx-text); font: inherit; }
+.nx-pattern-mark-row input:focus-visible { outline: 3px solid var(--nx-ring); outline-offset: 2px; }
 .nx-pattern-topic-edit { display: flex; align-items: center; gap: 10px; max-width: 450px; margin: 14px 0 0 27px; color: var(--nx-muted); font-size: 12px; }
 .nx-pattern-topic-edit input { flex: 1; min-width: 0; }
 .nx-pattern-review { margin-top: 18px; }

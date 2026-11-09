@@ -70,7 +70,12 @@ function isLikelyQuestionStemLine(line) {
 }
 
 function extractMarks(text) {
-  const patterns = [/\[\s*(\d{1,2})\s*(?:marks?|m)?\s*\]\s*$/i, /\(\s*(\d{1,2})\s*(?:marks?|m)\s*\)\s*$/i, /\s+(\d{1,2})\s*marks?\s*$/i];
+  const patterns = [
+    /\[\s*(\d{1,2})\s*(?:marks?|m)?\s*\]\s*$/i,
+    /\(\s*(\d{1,2})\s*(?:marks?|m)\s*\)\s*$/i,
+    /\bmarks?\s*[:=]\s*(\d{1,2})\s*$/i,
+    /\s+(\d{1,2})\s*(?:marks?|m)\s*$/i
+  ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) return { text: text.slice(0, match.index).trim(), marks: Number(match[1]) };
@@ -166,7 +171,7 @@ function analyzeQuestionPapers(papers) {
   const groups = [];
   const cleanPapers = papers.filter(paper => paper && Array.isArray(paper.questions));
   for (const [paperIndex, paper] of cleanPapers.entries()) {
-    for (const question of paper.questions) {
+    for (const [questionIndex, question] of paper.questions.entries()) {
       const text = String(question.text || '').replace(/\s+/g, ' ').trim().slice(0, 900);
       if (text.length < 12) continue;
       let group = groups.find(candidate => similarity(candidate.question, text) >= 0.72);
@@ -175,7 +180,7 @@ function analyzeQuestionPapers(papers) {
         groups.push(group);
       }
       const marks = Number(question.marks);
-      group.occurrences.push({ paperIndex, paper: String(paper.filename || 'Question paper'), year: String(paper.year || ''), page: Number(question.page) || 1, marks: Number.isFinite(marks) && marks > 0 && marks <= 100 ? marks : null });
+      group.occurrences.push({ paperIndex, questionIndex, number: Number(question.number) || null, paper: String(paper.filename || 'Question paper'), year: String(paper.year || ''), page: Number(question.page) || 1, marks: Number.isFinite(marks) && marks > 0 && marks <= 100 ? marks : null, markSource: question.markSource === 'manual' ? 'manual' : 'detected' });
     }
   }
   const result = groups.map(group => {

@@ -171,7 +171,7 @@
   function bars(target, entries, max, unit) {
     target.replaceChildren();
     if (!entries.length || max <= 0) {
-      target.append(node('p', 'nx-pattern-empty', unit === 'marks' ? 'No marks were found in these papers. Add marks like [8] after each question.' : 'Add at least one paper with numbered questions.'));
+      target.append(node('p', 'nx-pattern-empty', unit === 'marks' ? 'No marks detected yet. Add or correct them in each question’s “Marks by paper” section.' : 'Add at least one paper with numbered questions.'));
       return;
     }
     entries.forEach((entry, index) => {
@@ -207,7 +207,37 @@
       if (sort.value.includes('important')) badges.append(node('span', '', `Study priority ${priority(group)} · historical evidence${aiTopics.get(group.id)?.aiImportance ? ` + AI ${aiTopics.get(group.id).aiImportance}/5` : ''}`));
       if (aiTopics.get(group.id)?.alternate) badges.append(node('span', '', `Groq suggested: ${aiTopics.get(group.id).alternate}`));
       if (aiTopics.get(group.id)?.importanceDisagreement >= 2) badges.append(node('span', '', 'AI priority ratings differ — review manually'));
-      const sources = node('p', 'nx-pattern-sources-line', group.occurrences.map(item => `${item.year || item.paper}${item.page ? ` · p.${item.page}` : ''}${item.marks ? ` · ${item.marks} marks` : ''}`).join('   •   '));
+      const marksDetails=node('details','nx-pattern-marks-details');
+      marksDetails.append(node('summary','','Marks by paper · edit or clear values'));
+      const markList=node('div','nx-pattern-mark-list');
+      group.occurrences.forEach(item=>{
+        const row=node('label','nx-pattern-mark-row');
+        const paperName=item.year ? `${item.year} · ${item.paper}` : item.paper;
+        const questionName=item.number ? `Q${item.number}` : 'Question';
+        row.append(node('span','',`${paperName} · ${questionName}${item.page ? ` · p.${item.page}` : ''}${item.markSource==='manual' ? ' · edited' : ''}`));
+        const marksInput=node('input');
+        marksInput.type='number'; marksInput.min='1'; marksInput.max='100'; marksInput.step='1'; marksInput.placeholder='Not found';
+        marksInput.value=item.marks ?? '';
+        marksInput.setAttribute('aria-label',`Marks for ${item.paper}, ${questionName}`);
+        marksInput.addEventListener('change',async()=>{
+          const raw=marksInput.value.trim();
+          if(raw && (!/^\d{1,3}$/.test(raw) || Number(raw)<1 || Number(raw)>100)) {
+            setError('Enter a whole-number mark from 1 to 100, or clear the field.');
+            marksInput.value=item.marks ?? '';
+            return;
+          }
+          const question=papers[item.paperIndex]?.questions?.[item.questionIndex];
+          if(!question) return setError('This question could not be updated. Re-add the paper and try again.');
+          question.marks=raw ? Number(raw) : null;
+          question.markSource=raw ? 'manual' : null;
+          persist();
+          marksInput.disabled=true;
+          await analyze();
+          if(marksInput.isConnected) marksInput.disabled=false;
+        });
+        row.append(marksInput); markList.append(row);
+      });
+      marksDetails.append(markList);
       const topicLabel = node('label', 'nx-pattern-topic-edit', 'Topic');
       const topicInput = node('input');
       topicInput.type = 'text';
@@ -224,7 +254,7 @@
         renderQuestions();
       });
       topicLabel.append(topicInput);
-      card.append(heading, badges, sources, topicLabel);
+      card.append(heading, badges, marksDetails, topicLabel);
       if (sort.value.includes('important') && aiTopics.get(group.id)?.reasons?.length) card.append(node('p','nx-pattern-sources-line',`AI study rationale: ${aiTopics.get(group.id).reasons[0]}`));
       target.append(card);
     });
