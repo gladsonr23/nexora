@@ -30,8 +30,9 @@
   let topicOverrides = {};
   let analysis = null;
   try {
-    const saved = JSON.parse(sessionStorage.getItem('nexora-pattern-papers') || '[]');
-    if (Array.isArray(saved)) papers = saved.filter(paper => paper && Array.isArray(paper.questions)).slice(0, 30);
+    // Pattern analysis is temporary page state: start empty after every reload.
+    sessionStorage.removeItem('nexora-pattern-papers');
+    localStorage.removeItem('nexora-pattern-topics');
     const legacy = JSON.parse(localStorage.getItem('nexora-pattern-papers') || '[]');
     if (Array.isArray(legacy)) legacyPapers = legacy.filter(paper => paper && Array.isArray(paper.questions));
     const savedTopics = JSON.parse(localStorage.getItem('nexora-pattern-topics') || '{}');
