@@ -9,12 +9,12 @@
     "api": {
       "root": "nexora-api",
       "framework": "express",
-      "entrypoint": "server.js"
-    }
-  },
-  "functions": {
-    "nexora-api/server.js": {
-      "includeFiles": "nexora-api/node_modules/pdfjs-dist/wasm/**"
+      "entrypoint": "server.js",
+      "functions": {
+        "server.js": {
+          "includeFiles": "**/node_modules/pdfjs-dist/wasm/**"
+        }
+      }
     }
   },
   "rewrites": [
