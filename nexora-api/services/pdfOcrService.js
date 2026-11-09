@@ -54,6 +54,7 @@ async function extractPdfWithOcr(bytes, {
   recognizeImage = recognizeNvidiaOcrImage,
   fallbackToLocalOcr = true,
   continueOnUnreadablePages = false,
+  renderScale = 1.6,
   nvidiaTimeoutMs = 45000,
   env = process.env,
   runtime,
@@ -65,6 +66,7 @@ async function extractPdfWithOcr(bytes, {
   const document = await task.promise;
   const pages = Array(document.numPages);
   const scannedPages = [];
+  const initialMimeType = renderScale >= 2.4 ? 'image/png' : 'image/jpeg';
   let worker;
   const nvidiaConfigured = Boolean(getNvidiaOcrConfig(env).apiKey);
   const recognizeBatch = recognizeImages || (recognizeImage !== recognizeNvidiaOcrImage
@@ -83,7 +85,7 @@ async function extractPdfWithOcr(bytes, {
           continue;
         }
 
-        const viewport = page.getViewport({scale: 1.6});
+        const viewport = page.getViewport({scale: renderScale});
         const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
         const context = canvas.getContext('2d');
         await page.render({canvasContext: context, viewport}).promise;
@@ -91,7 +93,10 @@ async function extractPdfWithOcr(bytes, {
           pages[number - 1] = {number, text: '', source: 'blank', warnings: []};
           continue;
         }
-        scannedPages.push({number, imageBytes: canvas.toBuffer('image/jpeg', 0.85)});
+        const imageBytes = initialMimeType === 'image/png'
+          ? canvas.toBuffer('image/png')
+          : canvas.toBuffer('image/jpeg', 0.85);
+        scannedPages.push({number, imageBytes});
       } finally {
         page.cleanup();
       }
@@ -113,7 +118,7 @@ async function extractPdfWithOcr(bytes, {
         }
         const results = await Promise.all(batches.map(async batch => {
           try {
-            return {batch, texts: await recognizeBatch(batch.map(page => page.imageBytes), {mimeType: 'image/jpeg', timeoutMs: nvidiaTimeoutMs})};
+            return {batch, texts: await recognizeBatch(batch.map(page => page.imageBytes), {mimeType: initialMimeType, timeoutMs: nvidiaTimeoutMs})};
           } catch (error) {
             return {batch, error};
           }
@@ -128,7 +133,18 @@ async function extractPdfWithOcr(bytes, {
         }
       }
 
-      for (let start = 0; start < retryPages.length; start += OCR_BATCH_SIZE) {
+      if (renderScale >= 2.4) {
+        for (const scanned of retryPages) {
+          const warning = scanned.firstPassError?.message || 'NVIDIA OCR returned no text at high resolution.';
+          if (fallbackToLocalOcr) fallbackPages.push({...scanned, warnings: [warning]});
+          else if (continueOnUnreadablePages) pages[scanned.number - 1] = {
+            number: scanned.number, text: '', source: 'unreadable', warnings: [warning],
+          };
+          else throw new Error(warning);
+        }
+      }
+
+      for (let start = 0; renderScale < 2.4 && start < retryPages.length; start += OCR_BATCH_SIZE) {
         const batch = retryPages.slice(start, start + OCR_BATCH_SIZE);
         const enhancedImages = await Promise.all(batch.map(scanned => renderPdfPage(document, createCanvas, scanned.number, 2.4, 'image/png')));
         let texts;

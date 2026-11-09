@@ -34,15 +34,31 @@ router.post('/pattern/extract',express.raw({type:'*/*',limit:'4mb'}),async(req,r
   try{
     const [, , {inferExamYear,parseQuestionPaper},{extractPdfWithOcr}]=await modulesPromise;
     const examYear=inferExamYear(filename,year);
-    const pages=pdf ? await extractPdfWithOcr(bytes, {fallbackToLocalOcr: false, continueOnUnreadablePages: true, nvidiaTimeoutMs: 20000}) : [{number: 1, text: bytes.toString('utf8'), source: 'selectable'}];
+    let pages=pdf ? await extractPdfWithOcr(bytes, {fallbackToLocalOcr: false, continueOnUnreadablePages: true, nvidiaTimeoutMs: 20000}) : [{number: 1, text: bytes.toString('utf8'), source: 'selectable'}];
+    if(!pages.some(page=>String(page.text||'').trim())){
+      const ocrWarnings=pages.flatMap(page=>page.warnings||[]);
+      return res.status(422).json({error:ocrWarnings[0]||'The OCR tools found no readable text. Try a clearer scan.',processing:{warnings:ocrWarnings}});
+    }
+    let paper=parseQuestionPaper(pages,{filename,year:examYear});
+    const resolutionRetryWarnings=[];
+    const firstPassScanned=pages.some(page=>page.source==='nvidia'||page.source==='tesseract');
+    if(pdf&&firstPassScanned&&paper.questions.length<12){
+      try{
+        const highResolutionPages=await extractPdfWithOcr(bytes,{fallbackToLocalOcr:false,continueOnUnreadablePages:true,nvidiaTimeoutMs:20000,renderScale:2.4});
+        const highResolutionPaper=parseQuestionPaper(highResolutionPages,{filename,year:examYear});
+        if(highResolutionPaper.questions.length>paper.questions.length){pages=highResolutionPages;paper=highResolutionPaper;}
+        else resolutionRetryWarnings.push('A higher-resolution OCR pass did not find more question blocks; review this paper before relying on its analysis.');
+      }catch(error){
+        resolutionRetryWarnings.push(`The higher-resolution OCR pass failed; showing the first-pass result. ${error?.message||''}`.trim());
+      }
+    }
     const ocrWarnings=pages.flatMap(page=>page.warnings||[]);
-    if(!pages.some(page=>String(page.text||'').trim()))return res.status(422).json({error:ocrWarnings[0]||'The OCR tools found no readable text. Try a clearer scan.',processing:{warnings:ocrWarnings}});
-    const paper=parseQuestionPaper(pages,{filename,year:examYear}),providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
+    const providers=[...new Set(pages.map(page=>page.source).filter(source=>source==='nvidia'||source==='tesseract'))],scanned=providers.length>0;
     if(!paper.questions.length)return res.status(422).json({error:'Nexora could not identify questions in this paper. Try a clearer scan or another copy.',processing:{warnings:ocrWarnings}});
     const numberCounts=new Map();
     for(const question of paper.questions)numberCounts.set(question.number,(numberCounts.get(question.number)||0)+1);
     const repeatedNumbers=[...numberCounts].filter(([,count])=>count>1).map(([number])=>number);
-    const parseWarnings=[];
+    const parseWarnings=[...resolutionRetryWarnings];
     if(repeatedNumbers.length)parseWarnings.push(`OCR detected repeated question numbers (${repeatedNumbers.join(', ')}); review this paper before relying on its frequency analysis.`);
     if(scanned&&paper.questions.length<12)parseWarnings.push(`Only ${paper.questions.length} question blocks were detected; this scanned paper may be incomplete.`);
     paper.id=require('node:crypto').randomUUID();paper.addedAt=new Date().toISOString();paper.processing=scanned?`${providers.map(provider=>provider==='nvidia'?'NVIDIA Nemotron OCR':'Local Tesseract').join(' + ')} OCR`:'Selectable PDF text';

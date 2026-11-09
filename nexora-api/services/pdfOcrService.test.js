@@ -26,7 +26,7 @@ function makePdf(textOrPages = 'A selectable syllabus page with enough readable 
   return Buffer.from(source, 'binary');
 }
 
-function fakeRuntime(pageCount, {visibleInk = true} = {}) {
+function fakeRuntime(pageCount, {visibleInk = true, onViewport} = {}) {
   return [
     {createCanvas(width, height) {
       const pixels = new Uint8ClampedArray(width * height * 4);
@@ -50,7 +50,10 @@ function fakeRuntime(pageCount, {visibleInk = true} = {}) {
         async getPage() {
           return {
             getTextContent: async () => ({items: []}),
-            getViewport: ({scale}) => ({width: Math.ceil(20 * scale), height: Math.ceil(20 * scale)}),
+            getViewport: ({scale}) => {
+              onViewport?.(scale);
+              return {width: Math.ceil(20 * scale), height: Math.ceil(20 * scale)};
+            },
             render: () => ({promise: Promise.resolve()}),
             cleanup() {},
           };
@@ -139,6 +142,27 @@ test('retries a page with no NVIDIA detections using a higher-resolution PNG', a
   assert.equal(requests[1].options.mimeType, 'image/png');
   assert.deepEqual([...requests[1].images[0].subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.equal(pages[0].text, 'Text found on enhanced retry');
+  assert.equal(pages[0].source, 'nvidia');
+});
+
+test('supports a high-resolution PNG first pass for weakly recognized papers', async () => {
+  const scales = [];
+  let requestOptions;
+  const pages = await extractPdfWithOcr(makePdf(''), {
+    env: {NVIDIA_API_KEY: 'configured'},
+    fallbackToLocalOcr: false,
+    continueOnUnreadablePages: true,
+    renderScale: 2.4,
+    runtime: fakeRuntime(1, {onViewport: scale => scales.push(scale)}),
+    recognizeImages: async (_images, options) => {
+      requestOptions = options;
+      return ['Recognized high-resolution question paper'];
+    },
+  });
+
+  assert.ok(scales.includes(2.4));
+  assert.equal(requestOptions.mimeType, 'image/png');
+  assert.equal(pages[0].text, 'Recognized high-resolution question paper');
   assert.equal(pages[0].source, 'nvidia');
 });
 
