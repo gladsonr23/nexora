@@ -18,6 +18,22 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '16mb' }));
 
+// Public Clerk browser configuration. The publishable key is safe to send to
+// the frontend; the secret key is only used by middleware/auth.js.
+app.get('/api/auth/config', (_req, res) => {
+  const publishableKey = String(process.env.CLERK_PUBLISHABLE_KEY || '').trim();
+  const hasVerifier = Boolean(
+    process.env.CLERK_SECRET_KEY || process.env.CLERK_JWT_KEY
+  );
+
+  if (!/^pk_(test|live)_/.test(publishableKey) || !hasVerifier) {
+    return res.status(503).json({ error: 'Clerk authentication is not configured.' });
+  }
+
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+  return res.json({ publishableKey });
+});
+
 // This server is API-only. The actual dashboard (index.html / app.js /
 // styles.css + the frontend-modules/ files) is a separate static site that
 // calls these endpoints over HTTP (see frontend-modules/INTEGRATION.md).
@@ -54,5 +70,8 @@ app.listen(PORT, () => {
   }
   if (!process.env.NVIDIA_API_KEY) {
     console.warn('  ⚠ NVIDIA_API_KEY not set — scanned PDFs will use local Tesseract OCR fallback.');
+  }
+  if (!process.env.CLERK_PUBLISHABLE_KEY || (!process.env.CLERK_SECRET_KEY && !process.env.CLERK_JWT_KEY)) {
+    console.warn('  ⚠ Clerk keys not set — sign-in and protected Vault APIs are unavailable.');
   }
 });

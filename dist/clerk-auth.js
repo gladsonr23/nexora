@@ -13,7 +13,7 @@
  */
 
 (function () {
-  const PUBLISHABLE_KEY =
+  let PUBLISHABLE_KEY =
     String(window.NEXORA_CLERK_PUBLISHABLE_KEY || '').trim();
 
   const CLERK_JS = '@clerk/clerk-js@6';
@@ -26,7 +26,7 @@
     quiz: 'NexoraQuiz'
   };
 
-  const isConfigured =
+  let isConfigured =
     /^pk_(test|live)_/.test(PUBLISHABLE_KEY) &&
     !/REPLACE/i.test(PUBLISHABLE_KEY);
 
@@ -82,9 +82,32 @@
   // ------------------------------------------------------------
 
   const ready = (async () => {
+    // Static Nexora hosting cannot read server environment variables. Ask the
+    // API for the public key; the endpoint never returns the Clerk secret.
+    if (!isConfigured) {
+      try {
+        const apiBase = String(
+          window.NEXORA_API_BASE || window.location.origin
+        ).replace(/\/$/, '');
+        const response = await fetch(`${apiBase}/api/auth/config`, {
+          headers: { Accept: 'application/json' },
+          credentials: 'omit'
+        });
+        if (response.ok) {
+          const config = await response.json();
+          PUBLISHABLE_KEY = String(config.publishableKey || '').trim();
+          isConfigured =
+            /^pk_(test|live)_/.test(PUBLISHABLE_KEY) &&
+            !/REPLACE/i.test(PUBLISHABLE_KEY);
+        }
+      } catch (err) {
+        console.warn('[Nexora auth] Could not load Clerk configuration:', err);
+      }
+    }
+
     if (!isConfigured) {
       console.warn(
-        '[Nexora auth] window.NEXORA_CLERK_PUBLISHABLE_KEY is not set in index.html — sign-in is disabled.'
+        '[Nexora auth] Clerk is not configured by the API — sign-in is disabled.'
       );
       return null;
     }
@@ -227,7 +250,7 @@
 
     if (!c) {
       alert(
-        'Sign-in is not available right now. Check that the Clerk publishable key is set in index.html.'
+        'Sign-in is not available right now. Configure Clerk on the Nexora API project first.'
       );
       return;
     }
