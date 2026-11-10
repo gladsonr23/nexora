@@ -836,7 +836,7 @@ document.body.innerHTML = `
     </header>
     <div class="nx-chat-tools"><span>Answers grounded in your Vault</span><button type="button" id="nx-chat-customize" hidden>Customize avatar</button></div>
     <div class="nx-chat-messages" id="nx-chat-messages" aria-live="polite"><p class="nx-chat-welcome">Hi, I’m your study companion. Ask me about the PDFs and notes in your Vault.</p></div>
-    <div class="nx-chat-suggestions" id="nx-chat-suggestions"><button type="button" data-chat-prompt="Summarize the key ideas in my study materials">Summarize my materials</button><button type="button" data-chat-route="#quiz">Create a quiz</button><button type="button" data-chat-prompt="Analyze recurring exam patterns in my study materials">Analyze exam patterns</button></div>
+    <div class="nx-chat-suggestions" id="nx-chat-suggestions"><button type="button" data-chat-prompt="Summarize this session">Summarize this session</button><button type="button" data-chat-route="#quiz">Create a quiz</button><button type="button" data-chat-prompt="Analyze recurring exam patterns in my study materials">Analyze exam patterns</button></div>
     <form class="nx-chat-form" id="nx-chat-form"><label class="nx-sr-only" for="nx-chat-input">Ask about your study materials</label><textarea id="nx-chat-input" rows="2" maxlength="3000" placeholder="Ask about your study materials…" required></textarea><button class="nx-primary-button" type="submit">Send</button></form>
     <p class="nx-chat-disclaimer">Nexora answers from your Vault materials. Check the cited sources for important details.</p>
   </aside>
@@ -1446,38 +1446,27 @@ $('#nx-chat-form').addEventListener('submit', (event) => {
   request.then((result) => {
     assistantMessage.removeAttribute('aria-busy');
     assistantMessage.replaceChildren();
-    const answer = document.createElement('p');
-    answer.className = 'nx-chat-answer-copy';
-    answer.textContent = result.answer;
-    assistantMessage.append(answer);
-    assistantChatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: result.answer });
-    assistantChatHistory.splice(0, Math.max(0, assistantChatHistory.length - 12));
+    const answerText = String(result.answer || '');
     const sources = Array.isArray(result.sources) ? result.sources : [];
-    if (sources.length) {
-      const citations = document.createElement('div');
-      citations.className = 'nx-chat-citations';
-      citations.setAttribute('aria-label', 'Answer sources');
-      for (const source of sources) {
-        const citation = document.createElement('button');
-        citation.type = 'button';
-        citation.className = 'nx-chat-citation';
-        citation.dataset.materialId = source.materialId || '';
-        if (Number.isInteger(source.pageNumber)) citation.dataset.pageNumber = String(source.pageNumber);
-        citation.textContent = `[${source.number}] ${source.filename}${Number.isInteger(source.pageNumber) ? ` · p. ${source.pageNumber}` : ''}`;
-        citation.addEventListener('click', () => {
-          closeCompanionChat(false);
-          window.dispatchEvent(new CustomEvent('nexora:open-vault-source', {detail: {materialId: source.materialId, pageNumber: source.pageNumber}}));
-          window.location.hash = '#vault';
-        });
-        citations.append(citation);
-      }
-      assistantMessage.append(citations);
+    const answer = window.NexoraAssistantMarkdown?.render(answerText, sources, (source, pageNumber) => {
+      closeCompanionChat(false);
+      window.dispatchEvent(new CustomEvent('nexora:open-vault-source', {detail: {materialId: source.materialId, pageNumber}}));
+      window.location.hash = '#vault';
+    });
+    if (answer) assistantMessage.append(answer);
+    else {
+      const fallback = document.createElement('p');
+      fallback.className = 'nx-chat-answer-copy';
+      fallback.textContent = answerText;
+      assistantMessage.append(fallback);
     }
+    assistantChatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: answerText });
+    assistantChatHistory.splice(0, Math.max(0, assistantChatHistory.length - 12));
     thought.setSteps(['Reading your question', 'Searching your Vault materials', 'Preparing a cited answer']);
     thought.setWorking(false);
     assistantMessage.append(thought.element);
     $('#nx-chat-source-status').textContent = result.grounded
-      ? `${sources.length} cited Vault excerpt${sources.length === 1 ? '' : 's'}`
+      ? `${sources.length} retrieved Vault excerpt${sources.length === 1 ? '' : 's'}`
       : 'General study guidance · no Vault excerpts';
   }).catch((error) => {
     thought.setWorking(false);

@@ -1713,10 +1713,20 @@ body,
 }
 
 .nx-chat-page .nx-chat-messages { scroll-behavior: smooth; }
-.nx-chat-page .nx-chat-answer-copy { margin: 0; white-space: pre-wrap; }
-.nx-chat-answer { box-sizing: border-box; width: min(410px,100%); }
+.nx-chat-answer .nx-chat-answer-copy { display: flex; flex-direction: column; gap: 12px; margin: 0; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nx-chat-answer .nx-chat-answer-copy > p,
+.nx-chat-answer .nx-chat-answer-copy > h4,
+.nx-chat-answer .nx-chat-answer-copy > ul,
+.nx-chat-answer .nx-chat-answer-copy > ol { margin: 0; }
+.nx-chat-answer .nx-chat-answer-copy > h4 { color: var(--nx-accent); font-size: 13px; font-weight: 800; letter-spacing: .06em; }
+.nx-chat-answer .nx-chat-answer-list { display: grid; gap: 10px; padding-left: 1.55em; }
+.nx-chat-answer .nx-chat-answer-list li { padding-left: 3px; }
+.nx-chat-answer .nx-chat-answer-copy pre { max-width: 100%; margin: 0; padding: 12px 14px; overflow: auto; border: 1px solid var(--nx-line); border-radius: 10px; background: var(--nx-surface); }
+.nx-chat-answer .nx-chat-answer-copy code { border-radius: 4px; background: color-mix(in srgb, var(--nx-line) 32%, transparent); padding: 1px 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
+.nx-chat-answer .nx-chat-answer-copy pre code { display: block; padding: 0; background: transparent; font-size: 12px; }
+.nx-chat-answer { box-sizing: border-box; width: min(620px,100%); max-width: min(620px,100%); }
 .nx-chat-citations { display: flex; flex-wrap: wrap; gap: 6px; max-width: 100%; margin: 9px 0; color: var(--nx-muted); font-size: 11px; line-height: 1.5; }
-.nx-chat-citation { border: 1px solid var(--nx-line); border-radius: 999px; padding: 4px 9px; background: var(--nx-surface); color: var(--nx-accent); font: inherit; cursor: pointer; }
+.nx-chat-citation { display: inline-flex; vertical-align: baseline; margin: 1px 2px; border: 1px solid var(--nx-line); border-radius: 999px; padding: 2px 8px; background: var(--nx-surface); color: var(--nx-accent); font: inherit; font-size: .78em; line-height: 1.5; cursor: pointer; white-space: nowrap; }
 .nx-chat-citation:hover, .nx-chat-citation:focus-visible { border-color: var(--nx-accent); outline: none; }
 .nx-chat-answer .thought-line { width: 100%; margin-top: 6px; align-items: stretch; color: var(--nx-muted); font-size: 12px; }
 .nx-chat-answer .lattice-loader { margin-top: 5px; color: var(--nx-muted); }
