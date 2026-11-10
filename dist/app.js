@@ -305,9 +305,6 @@ document.body.innerHTML = `
 
               <h1 class="nx-greeting" id="nx-page-title">
                 <span id="nx-greeting-text">Welcome to Nexora</span>
-                <button class="nx-greeting-edit" id="nx-greeting-edit" type="button" aria-label="Edit your display name" title="Edit your display name">
-                  ${icon('edit')}
-                </button>
               </h1>
 
               <p>
@@ -438,36 +435,36 @@ document.body.innerHTML = `
           <section
             class="nx-metrics"
             id="nx-metrics"
-            aria-label="Sample study snapshot"
+            aria-label="Your study snapshot"
           >
             <a class="nx-metric nx-glare-hover" href="#focus" aria-label="Open Focus Mode">
               <span>Focus time</span>
-              <strong>2h 40m</strong>
-              <small>This week · sample</small>
+              <strong id="nx-metric-focus">0m</strong>
+              <small>This week</small>
             </a>
 
             <a class="nx-metric nx-glare-hover" href="#schedule" aria-label="Open SyllabusToSchedule">
               <span>Tasks due</span>
-              <strong id="nx-metric-tasks">3</strong>
-              <small>Today · sample</small>
+              <strong id="nx-metric-tasks">0</strong>
+              <small>Today</small>
             </a>
 
             <a class="nx-metric nx-glare-hover" href="#flashloop" aria-label="Open FlashLoop">
               <span>Cards to revise</span>
-              <strong>18</strong>
-              <small>FlashLoop · sample</small>
+              <strong id="nx-metric-cards">0</strong>
+              <small>Due today</small>
             </a>
 
             <a class="nx-metric nx-glare-hover" href="#vault" aria-label="Open Vault">
               <span>Materials saved</span>
-              <strong>24</strong>
-              <small>Vault · sample</small>
+              <strong id="nx-metric-materials">0</strong>
+              <small>In your Vault</small>
             </a>
 
             <a class="nx-metric nx-glare-hover" href="#analytics" aria-label="Open Progress Analytics">
               <span>Study streak</span>
-              <strong>12 days</strong>
-              <small>Sample activity</small>
+              <strong id="nx-metric-streak">0 days</strong>
+              <small>Current streak</small>
             </a>
           </section>
 
@@ -599,7 +596,7 @@ document.body.innerHTML = `
             <h2>Your profile</h2>
 
             <p>
-              Your account name is used by default. You can set a personal display name for this browser.
+              Your dashboard name is taken from the email address on your signed-in account.
             </p>
 
             <div class="nx-settings-row">
@@ -615,14 +612,6 @@ document.body.innerHTML = `
                   Not signed in
                 </strong>
               </span>
-
-              <button
-                class="nx-secondary-button"
-                id="nx-edit-name"
-                type="button"
-              >
-                Edit name
-              </button>
 
             </div>
 
@@ -651,81 +640,6 @@ document.body.innerHTML = `
     </div>
 
   </div>
-
-  <dialog
-    class="nx-name-dialog"
-    id="nx-name-dialog"
-    aria-labelledby="nx-name-title"
-    aria-describedby="nx-name-description"
-  >
-
-    <form
-      id="nx-name-form"
-      novalidate
-    >
-
-      <span class="nx-placeholder-rule"></span>
-
-      <p class="nx-kicker">
-        Nexora workspace
-      </p>
-
-      <h2 id="nx-name-title">
-        Welcome to Nexora
-      </h2>
-
-      <p id="nx-name-description">
-        What should we call you? Your name will appear on your dashboard
-        and stay in this browser.
-      </p>
-
-      <label for="nx-name-input">
-        Your name
-      </label>
-
-      <input
-        id="nx-name-input"
-        name="display-name"
-        type="text"
-        autocomplete="name"
-        maxlength="40"
-        aria-describedby="nx-name-error"
-        required
-      >
-
-      <p
-        class="nx-field-error"
-        id="nx-name-error"
-        role="alert"
-        hidden
-      >
-        Please enter your name.
-      </p>
-
-      <div class="nx-dialog-actions">
-
-        <button
-          class="nx-secondary-button"
-          id="nx-name-cancel"
-          type="button"
-          hidden
-        >
-          Cancel
-        </button>
-
-        <button
-          class="nx-primary-button"
-          id="nx-name-submit"
-          type="submit"
-        >
-          Continue to dashboard
-        </button>
-
-      </div>
-
-    </form>
-
-  </dialog>
 
   <button class="nx-companion-launcher is-unpersonalized" id="nx-companion-launcher" type="button" aria-label="Customize avatar. Drag to move; click to personalize." aria-haspopup="dialog" aria-expanded="false" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight">
     <span class="nx-companion-launcher-face" id="nx-companion-launcher-face" hidden></span>
@@ -869,47 +783,7 @@ dockAnimationControl.addEventListener('change', () => {
   } catch (_) {}
 });
 
-const nameDialog = $('#nx-name-dialog');
-const nameInput = $('#nx-name-input');
-
-const normalizeName = (value) =>
-  value.replace(/\s+/g, ' ').trim();
-
 let displayName = '';
-
-function getNameStorageKey() {
-  const userId =
-    window.NexoraAuth &&
-    typeof window.NexoraAuth.getUserId === 'function'
-      ? window.NexoraAuth.getUserId()
-      : null;
-
-  if (userId) {
-    return `nexora-display-name:${userId}`;
-  }
-
-  return 'nexora-display-name:guest';
-}
-
-function loadDisplayName() {
-  try {
-    return normalizeName(
-      localStorage.getItem(getNameStorageKey()) || ''
-    ).slice(0, 40);
-  } catch (_) {
-    return '';
-  }
-}
-
-function accountDisplayName() {
-  const accountName =
-    window.NexoraAuth &&
-    typeof window.NexoraAuth.getProfileName === 'function'
-      ? window.NexoraAuth.getProfileName()
-      : '';
-
-  return normalizeName(accountName || '').slice(0, 40);
-}
 
 function accountEmailAddress() {
   const email =
@@ -921,6 +795,16 @@ function accountEmailAddress() {
   return String(email || '').trim();
 }
 
+function accountDisplayName() {
+  const email = accountEmailAddress();
+  const localPart = email.split('@')[0].split('+')[0];
+  const words = localPart.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  return words
+    .map((word) => `${Array.from(word)[0].toLocaleUpperCase()}${Array.from(word).slice(1).join('')}`)
+    .join(' ')
+    .slice(0, 40);
+}
+
 function getGreetingPeriod(date = new Date()) {
   const hour = date.getHours();
   if (hour < 12) return 'Good morning';
@@ -928,7 +812,7 @@ function getGreetingPeriod(date = new Date()) {
   return 'Good evening';
 }
 
-displayName = loadDisplayName() || accountDisplayName();
+displayName = accountDisplayName();
 
 function renderName() {
   const greeting = displayName
@@ -954,13 +838,11 @@ function renderName() {
 
 /*
  * Refresh the Nexora display name whenever the Clerk
- * account changes.
- *
- * A locally customized display name takes precedence;
- * otherwise use the name on the signed-in Clerk account.
+ * account changes. Nexora derives the display name from the
+ * signed-in email address so it stays consistent across devices.
  */
 function refreshClerkDisplayName() {
-  displayName = loadDisplayName() || accountDisplayName();
+  displayName = accountDisplayName();
 
   renderName();
 }
@@ -972,144 +854,6 @@ function handleAuthChanged() {
 window.addEventListener(
   'nexora-auth-changed',
   handleAuthChanged
-);
-
-function openNameDialog(edit = false) {
-  nameDialog.dataset.mode = 'edit';
-
-  $('#nx-name-title').textContent =
-    edit
-      ? 'Change your name'
-      : 'Edit your name';
-
-  $('#nx-name-description').textContent =
-    edit
-      ? 'Update the name shown in your dashboard and sidebar.'
-      : 'Choose a display name for your Nexora workspace.';
-
-  $('#nx-name-submit').textContent =
-    edit
-      ? 'Save name'
-      : 'Save name';
-
-  $('#nx-name-cancel').hidden =
-    !edit;
-
-  $('#nx-name-error').hidden =
-    true;
-
-  nameInput.removeAttribute(
-    'aria-invalid'
-  );
-
-  nameInput.value =
-    edit
-      ? displayName
-      : '';
-
-  nameDialog.showModal();
-
-  nameInput.focus();
-}
-
-function validateName() {
-  const valid =
-    Boolean(
-      normalizeName(
-        nameInput.value
-      )
-    );
-
-  $('#nx-name-error').hidden =
-    valid;
-
-  if (valid) {
-    nameInput.removeAttribute(
-      'aria-invalid'
-    );
-  } else {
-    nameInput.setAttribute(
-      'aria-invalid',
-      'true'
-    );
-  }
-
-  return valid;
-}
-
-nameInput.addEventListener(
-  'blur',
-  () => {
-    if (nameInput.value) {
-      validateName();
-    }
-  }
-);
-
-nameInput.addEventListener(
-  'input',
-  () => {
-    if (
-      nameInput.getAttribute(
-        'aria-invalid'
-      ) === 'true'
-    ) {
-      validateName();
-    }
-  }
-);
-
-$('#nx-name-cancel').addEventListener(
-  'click',
-  () => nameDialog.close()
-);
-
-$('#nx-name-form').addEventListener(
-  'submit',
-  (event) => {
-    event.preventDefault();
-
-    if (!validateName()) {
-      nameInput.focus();
-      return;
-    }
-
-    displayName =
-      normalizeName(
-        nameInput.value
-      ).slice(0, 40);
-
-    let saved = true;
-
-    try {
-      localStorage.setItem(
-        getNameStorageKey(),
-        displayName
-      );
-    } catch (_) {
-      saved = false;
-    }
-
-    renderName();
-
-    nameDialog.close();
-
-    if (!saved) {
-      toast(
-        'Browser storage is unavailable. Your name will last for this visit only.'
-      );
-    }
-  }
-);
-
-$('#nx-edit-name').addEventListener(
-  'click',
-  () => openNameDialog(true)
-);
-
-$('#nx-greeting-edit').addEventListener(
-  'click',
-  () => openNameDialog(true)
 );
 
 renderName();
@@ -2336,6 +2080,71 @@ try {
 
 const taskStates = taskDefinitions.map((_, index) => Boolean(savedTasks[index]));
 
+function refreshOverviewMetrics() {
+  const store = window.NexoraStore;
+  const date = window.NexoraDate;
+  if (!store || !date) return;
+  const sessions = store.get('nexora-focus-sessions', []);
+  const decks = store.get('nexora-flashloop-decks', []);
+  const reviews = store.get('nexora-flashloop-reviews', []);
+  const quizAttempts = store.get('nexora-quiz-attempts', []);
+  const focusList = Array.isArray(sessions) ? sessions : [];
+  const reviewList = Array.isArray(reviews) ? reviews : [];
+  const quizList = Array.isArray(quizAttempts) ? quizAttempts : [];
+  const today = date.dayKey();
+  const activeDays = new Set([
+    ...focusList.map(item => date.isoDay(item.completedAt)).filter(Boolean),
+    ...reviewList.map(item => date.isoDay(item.reviewedAt)).filter(Boolean),
+    ...quizList.map(item => date.isoDay(item.completedAt)).filter(Boolean),
+  ]);
+  let streak = 0;
+  let cursor = activeDays.has(today) ? 0 : -1;
+  while (activeDays.has(date.addDays(cursor))) { streak += 1; cursor -= 1; }
+
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - 6);
+  const focusMinutes = focusList.reduce((total, item) => {
+    const day = date.isoDay(item.completedAt);
+    const completed = Number(item.completedMinutes) || 0;
+    return day >= date.dayKey(weekStart) && day <= today ? total + completed : total;
+  }, 0);
+  const focusLabel = focusMinutes >= 60
+    ? `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60 ? `${focusMinutes % 60}m` : ''}`.trim()
+    : `${focusMinutes}m`;
+  const dueCards = (Array.isArray(decks) ? decks : []).flatMap(deck => Array.isArray(deck?.cards) ? deck.cards : [])
+    .filter(card => {
+      const due = Date.parse(card?.dueAt);
+      return Number.isFinite(due) && due <= Date.now();
+    }).length;
+
+  const setMetric = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+  };
+  setMetric('nx-metric-focus', focusLabel);
+  setMetric('nx-metric-cards', dueCards);
+  setMetric('nx-metric-streak', `${streak} ${streak === 1 ? 'day' : 'days'}`);
+
+  Promise.allSettled([
+    window.NexoraVaultFileStore?.list?.(),
+    window.NexoraStudyTasks?.list?.(),
+  ]).then(([vaultResult, taskResult]) => {
+    if (vaultResult.status === 'fulfilled' && Array.isArray(vaultResult.value)) {
+      setMetric('nx-metric-materials', vaultResult.value.length);
+    }
+    let tasks = taskResult.status === 'fulfilled' && Array.isArray(taskResult.value)
+      ? taskResult.value.filter(task => task?.status !== 'completed')
+      : [];
+    if (!tasks.length) {
+      const plans = store.get('nexora-study-plans', []);
+      tasks = (Array.isArray(plans) ? plans : []).flatMap(plan => Array.isArray(plan?.tasks) ? plan.tasks : [])
+        .filter(task => task?.date === today && !task?.completed && task?.status !== 'completed');
+    }
+    setMetric('nx-metric-tasks', tasks.length);
+  });
+}
+
 taskRoots.forEach((root, index) => {
   const task = taskDefinitions[index];
   if (!task || !window.NexoraSpringCheck) return;
@@ -2361,15 +2170,18 @@ function renderTasks() {
   $('#nx-task-progress').textContent =
     `${completed} of ${taskStates.length} completed`;
 
-  $('#nx-metric-tasks').textContent =
-    String(taskStates.length - completed);
-
   window.dispatchEvent(
     new CustomEvent('nexora:plan-updated')
   );
 }
 
 renderTasks();
+refreshOverviewMetrics();
+['nexora:vault-updated', 'nexora:focus-completed', 'nexora:flashcard-reviewed', 'nexora:quiz-completed', 'nexora:plan-updated']
+  .forEach(eventName => window.addEventListener(eventName, refreshOverviewMetrics));
+window.addEventListener('storage', refreshOverviewMetrics);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshOverviewMetrics(); });
+window.setInterval(refreshOverviewMetrics, 60_000);
 
 // ============================================================
 // Clerk profile button

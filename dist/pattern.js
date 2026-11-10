@@ -443,12 +443,26 @@
   });
   $('#nx-pattern-ai').disabled = true;
   sort.addEventListener('change',renderQuestions);
-  saveReportButton.addEventListener('click',() => {
+  saveReportButton.addEventListener('click', async () => {
     const report=reportSnapshot(); if (!report) return;
-    const stored=readStore('nexora-vault-pattern-reports');
-    if (!writeStore('nexora-vault-pattern-reports',[report,...stored].slice(0,10))) return setError('Browser storage is full. Download the PDF instead.');
-    window.dispatchEvent(new Event('nexora:vault-updated'));
-    progress.hidden=false; progress.textContent='Pattern-analysis report saved to Vault.';
+    const store=window.NexoraVaultFileStore;
+    if (!store?.putMany || !window.NexoraPdf?.patternFilename) return setError('Vault storage is unavailable. Refresh Nexora and try again.');
+    saveReportButton.disabled=true;
+    progress.hidden=false; progress.textContent='Saving report to Vault…';
+    try {
+      const files=await store.list();
+      const baseName=window.NexoraPdf.patternFilename(report);
+      const stem=baseName.replace(/\.pdf$/i,'');
+      const existingNames=new Set(files.map(file=>file.name));
+      let filename=baseName, suffix=2;
+      while(existingNames.has(filename)) filename=`${stem}-${suffix++}.pdf`;
+      const blob=patternPdf(report).output('blob');
+      const file=new File([blob],filename,{type:'application/pdf',lastModified:Date.now()});
+      await store.putMany([file],{subject:'Prof Pattern Detector',category:'Study Reports'});
+      progress.textContent='Pattern-analysis PDF saved to Vault Library.';
+    } catch (problem) {
+      setError(problem.message || 'Could not save the report to Vault.');
+    } finally { saveReportButton.disabled=false; }
   });
   printReportButton.addEventListener('click',() => { const report=reportSnapshot(); if (report) openPatternPdf(report); });
   downloadReportButton.addEventListener('click',() => { const report=reportSnapshot(); if (report) downloadPatternPdf(report); });

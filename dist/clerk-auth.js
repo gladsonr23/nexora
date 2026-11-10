@@ -36,6 +36,51 @@
   // Prevent the automatic sign-in popup from being opened repeatedly.
   let autoSignInAttempted = false;
 
+  const authGate = document.createElement('section');
+  authGate.className = 'nx-auth-gate';
+  authGate.setAttribute('role', 'dialog');
+  authGate.setAttribute('aria-modal', 'true');
+  authGate.setAttribute('aria-labelledby', 'nx-auth-gate-title');
+  authGate.innerHTML = `
+    <div class="nx-auth-gate-card">
+      <span class="nx-auth-gate-mark" aria-hidden="true">N</span>
+      <p class="nx-eyebrow">NEXORA WORKSPACE</p>
+      <h1 id="nx-auth-gate-title">Sign in to continue</h1>
+      <p class="nx-auth-gate-message" id="nx-auth-gate-message">Checking your account…</p>
+      <button class="nx-primary-button" id="nx-auth-gate-signin" type="button" hidden>Sign in or create account</button>
+      <button class="nx-secondary-button" id="nx-auth-gate-retry" type="button" hidden>Try again</button>
+    </div>
+  `;
+
+  const mountAuthGate = () => {
+    if (document.body && !authGate.isConnected) document.body.appendChild(authGate);
+  };
+
+  mountAuthGate();
+  const authGateObserver = new MutationObserver(() => {
+    mountAuthGate();
+    if (document.querySelector('.nx-shell')) authGateObserver.disconnect();
+  });
+  authGateObserver.observe(document.body, { childList: true });
+
+  function setAuthGateState(state, message) {
+    document.documentElement.dataset.nxAuthState = state;
+    authGate.hidden = state === 'authorized';
+    const status = authGate.querySelector('#nx-auth-gate-message');
+    const signInButton = authGate.querySelector('#nx-auth-gate-signin');
+    const retryButton = authGate.querySelector('#nx-auth-gate-retry');
+    if (status) status.textContent = message;
+    if (signInButton) signInButton.hidden = state !== 'required';
+    if (retryButton) retryButton.hidden = state !== 'unavailable';
+  }
+
+  authGate.addEventListener('click', (event) => {
+    if (event.target.closest('#nx-auth-gate-signin')) signIn();
+    if (event.target.closest('#nx-auth-gate-retry')) window.location.reload();
+  });
+
+  setAuthGateState('checking', 'Checking your account…');
+
   function openRequiredSignIn(c, { highlightAction = false } = {}) {
     c.openSignIn({
       appearance: {
@@ -109,6 +154,7 @@
       console.warn(
         '[Nexora auth] Clerk is not configured by the API — sign-in is disabled.'
       );
+      setAuthGateState('unavailable', 'Sign-in is not configured yet. Please try again after the workspace is updated.');
       return null;
     }
 
@@ -142,6 +188,12 @@
 
       renderProfile();
 
+      if (clerk.session) {
+        setAuthGateState('authorized', '');
+      } else {
+        setAuthGateState('required', 'Sign in with your email to enter Nexora. Your workspace name will come from your email address.');
+      }
+
       // --------------------------------------------------------
       // AUTO OPEN SIGN-IN
       // --------------------------------------------------------
@@ -163,6 +215,8 @@
         '[Nexora auth] Clerk failed to load:',
         err
       );
+
+      setAuthGateState('unavailable', 'We could not load sign-in. Check your connection and try again.');
 
       return null;
     }
@@ -295,6 +349,18 @@
 
     renderProfile();
 
+    if (clerk && clerk.session) {
+      setAuthGateState('authorized', '');
+    } else {
+      setAuthGateState('required', 'Sign in with your email to enter Nexora. Your workspace name will come from your email address.');
+      if (!autoSignInAttempted) {
+        autoSignInAttempted = true;
+        setTimeout(() => {
+          if (clerk && !clerk.session) openRequiredSignIn(clerk, { highlightAction: true });
+        }, 300);
+      }
+    }
+
     window.dispatchEvent(
       new CustomEvent('nexora-auth-changed', {
         detail: {
@@ -403,7 +469,7 @@
           ? `Signed in as ${email}`
           : 'Account';
 
-      small.textContent = 'Signed in · ';
+      small.textContent = email || 'Signed in';
 
       const out =
         document.createElement('button');
@@ -483,7 +549,7 @@
 
   window.NexoraAuth = {
     ready,
-    isConfigured,
+    get isConfigured() { return isConfigured; },
     getToken,
     isSignedIn,
     getUserId,

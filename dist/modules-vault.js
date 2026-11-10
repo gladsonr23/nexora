@@ -12,6 +12,7 @@
     'Assignments',
     'PYQs',
     'Question Banks',
+    'Study Reports',
     'Other',
   ];
   const state = { search: '', category: 'All', pendingFiles: [], selectionMode: false, selectedIds: [] };
