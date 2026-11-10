@@ -75,6 +75,7 @@ router.post('/reconcile', async (req, res) => {
     res.json(await rag.reconcile({userId: scopedUserId(req, sessionId), sessionId, materialIds: ids}));
   } catch (error) {
     console.error('[assistant] reconcile failed:', error);
+    if (error.status && error.status < 500) return res.status(error.status).json({error: error.message});
     if (error instanceof RagStoreError && error.code === 'NOT_CONFIGURED') return res.status(503).json({error: 'Study search storage is not configured.'});
     res.status(502).json({error: 'Could not sync this study session.'});
   }
@@ -87,6 +88,7 @@ router.post('/status', async (req, res) => {
   }
   catch (error) {
     console.error('[assistant] status failed:', error);
+    if (error.status && error.status < 500) return res.status(error.status).json({error: error.message});
     if (error instanceof RagStoreError && error.code === 'NOT_CONFIGURED') return res.status(503).json({error: 'Study search storage is not configured.'});
     res.status(502).json({error: 'Could not check this study session.'});
   }
@@ -100,6 +102,7 @@ router.post('/close', async (req, res) => {
   }
   catch (error) {
     console.error('[assistant] close failed:', error);
+    if (error.status && error.status < 500) return res.status(error.status).json({error: error.message});
     if (error instanceof RagStoreError && error.code === 'NOT_CONFIGURED') return res.status(503).json({error: 'Study search storage is not configured.'});
     res.status(502).json({error: 'Could not close this study session.'});
   }

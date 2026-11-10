@@ -25,6 +25,7 @@ require.cache[authPath] = {
 const scheduleRouter = require('../nexora-api/routes/schedule');
 const quizzesRouter = require('../nexora-api/routes/quizzes');
 const studyComponentsRouter = require('../nexora-api/routes/study-components');
+const assistantRouter = require('../nexora-api/routes/assistant');
 const {db} = require('../nexora-api/db/database');
 
 function makePdf({scanned = false} = {}) {
@@ -56,6 +57,7 @@ const server = express()
   .use('/api', studyComponentsRouter)
   .use('/api/schedule', scheduleRouter)
   .use('/api/quizzes', quizzesRouter)
+  .use('/api/assistant', assistantRouter)
   .listen(0, '127.0.0.1');
 
 const originalFetch = global.fetch;
@@ -200,6 +202,18 @@ test('Pattern Detector reports NVIDIA OCR failures promptly without starting loc
     assert.match(payload.error, /NVIDIA OCR failed \(HTTP 503\): OCR temporarily unavailable/);
   } finally {
     failNvidia = false;
+  }
+});
+
+test('Assistant session endpoints return client errors for a missing session id', async () => {
+  const address = server.address();
+  for (const endpoint of ['status', 'reconcile', 'close']) {
+    const response = await originalFetch(`http://127.0.0.1:${address.port}/api/assistant/${endpoint}`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({}),
+    });
+    assert.equal(response.status, 400, `${endpoint} should report an invalid request`);
   }
 });
 
