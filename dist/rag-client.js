@@ -13,8 +13,9 @@
     pendingSync = (async () => {
       const store = window.NexoraVaultFileStore;
       if (!store?.list) throw new Error('Browser Vault is unavailable. Refresh and try again.');
+      await store.ready;
       const materials = await shared.listVaultMaterials();
-      const active = materials.filter(item => (!item.sessionId || item.sessionId === sessionId) && /\.(pdf|txt)$/i.test(item.filename)).slice(0, 20);
+      const active = materials.filter(item => item.sessionId === sessionId && /\.(pdf|txt)$/i.test(item.filename)).slice(0, 20);
       if (!active.length) {
         try {
           await shared.api('/api/assistant/reconcile', {method: 'POST', body: JSON.stringify({sessionId, materialIds: []})});

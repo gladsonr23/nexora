@@ -149,12 +149,12 @@
     const names = state.pendingFiles.map(file => escape(file.name)).join(', ');
     panel.innerHTML = `
       <div class="nxv-upload-panel">
-        <p class="nxv-upload-note">Selected: <strong>${names}</strong><br>Files are saved only in this browser and do not sync across devices.</p>
+        <p class="nxv-upload-note">Selected: <strong>${names}</strong><br>Files are saved in this browser’s Vault and added to <strong>This Session</strong>. They return to the Vault Library when the session ends.</p>
         <label class="nxm-field">Subject<input type="text" id="nxv-upload-subject" placeholder="e.g. Operating Systems" maxlength="120"></label>
         <label class="nxm-field">Category<select id="nxv-upload-category">${categories.map(category => `<option value="${escape(category)}" ${category === 'Notes' ? 'selected' : ''}>${escape(category)}</option>`).join('')}</select></label>
         <div class="nxv-upload-actions">
           <button type="button" class="nx-secondary-button" id="nxv-upload-cancel">Cancel</button>
-          <button type="button" class="nx-primary-button" id="nxv-upload-confirm"><span>Add to Vault</span></button>
+          <button type="button" class="nx-primary-button" id="nxv-upload-confirm"><span>Add to This Session</span></button>
         </div>
       </div>
     `;
@@ -181,7 +181,7 @@
       } catch (error) {
         notify(error.message || 'Could not save these files.');
         button.disabled = false;
-        button.textContent = 'Add to Vault';
+        button.textContent = 'Add to This Session';
       }
     });
   }
@@ -205,17 +205,22 @@
         return categoryMatch && searchMatch;
       });
 
-      if (!filtered.length) {
-        host.innerHTML = `
-          <div class="nxm-empty">
-            <h3>${files.length ? 'No matching materials' : 'No materials yet'}</h3>
-            <p>${files.length ? 'Clear the search or choose another category.' : 'Upload a syllabus, lecture slides, or notes to get started.'}</p>
-          </div>
-        `;
+      const currentSession = window.NexoraSession?.id;
+      const sessionFiles = filtered.filter(file => file.sessionId === currentSession);
+      const libraryFiles = filtered.filter(file => file.sessionId !== currentSession);
+      const listClass = `nxv-list${state.selectionMode ? ' nxv-list--selection' : ''}`;
+      const renderSection = (title, description, sectionFiles, action) => `
+        <section class="nxv-vault-section">
+          <header class="nxv-section-heading"><div><h3>${title}</h3><p>${description}</p></div><span>${sectionFiles.length} ${sectionFiles.length === 1 ? 'material' : 'materials'}</span></header>
+          ${sectionFiles.length
+            ? `<div class="${listClass}">${sectionFiles.map(file => renderRow(file, action)).join('')}</div>`
+            : `<div class="nxv-section-empty">${query || state.category !== 'All' ? 'No matching materials in this section.' : title === 'This Session' ? 'No materials in this session yet. Add a Vault Library file or upload new material.' : 'Your saved materials will appear here after a session ends.'}</div>`}
+        </section>`;
+      if (!files.length && !state.search.trim() && state.category === 'All') {
+        host.innerHTML = '<div class="nxm-empty"><h3>No materials yet</h3><p>Upload a syllabus, lecture slides, or notes. New uploads are added to This Session.</p></div>';
         return;
       }
-
-      host.innerHTML = `<div class="nxv-list${state.selectionMode ? ' nxv-list--selection' : ''}">${filtered.map(renderRow).join('')}</div>`;
+      host.innerHTML = `${renderSection('This Session', 'Only these materials are used by the study assistant in this session.', sessionFiles, 'remove-session')}${renderSection('Vault Library', 'Saved materials from completed sessions, ready to add again.', libraryFiles, 'add-session')}`;
       wireRowActions(container, host);
       mountDeleteButtons(container, host);
     } catch (error) {
@@ -295,7 +300,7 @@
     }
   }
 
-  function renderRow(file) {
+  function renderRow(file, sessionAction) {
     return `
       <article class="nxv-row" data-file-id="${escape(file.id)}">
         ${state.selectionMode ? `<label class="nxv-select-control"><input type="checkbox" data-action="toggle-select" aria-label="Select ${escape(file.name)} for deletion" ${state.selectedIds.includes(file.id) ? 'checked' : ''}></label>` : ''}
@@ -305,6 +310,7 @@
           <small><span>${escape(file.subject || 'General')}</span> · <span>${escape(file.category || 'Notes')}</span> · <span>${prettySize(file.size || 0)}</span> · <span>${escape(dateLabel(file.createdAt))}</span></small>
         </div>
         <div class="nxv-row-actions">
+          <button type="button" data-action="${sessionAction}">${sessionAction === 'remove-session' ? 'Move to Vault Library' : 'Add to This Session'}</button>
           <button type="button" data-action="open">Open</button>
           <button type="button" data-action="download">Download</button>
           <button type="button" data-action="edit">Edit</button>
@@ -401,6 +407,16 @@
           case 'open': openFile(file, false); break;
           case 'download': openFile(file, true); break;
           case 'edit': renderEditRow(row, file); break;
+          case 'add-session':
+            await store.update(file.id, {sessionId: window.NexoraSession?.id || null});
+            notify('Material added to This Session. The study assistant will use it.');
+            await refreshList(container);
+            break;
+          case 'remove-session':
+            await store.update(file.id, {sessionId: null});
+            notify('Material moved to the Vault Library and removed from this session.');
+            await refreshList(container);
+            break;
           case 'cancel-edit': await refreshList(container); break;
           case 'save-edit': {
             await store.update(file.id, {

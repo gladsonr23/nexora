@@ -82,6 +82,13 @@
 #nxv-list { min-width: 0; width: 100%; }
 #nxv-list .nxm-empty { justify-items: start; padding: clamp(28px,5vw,56px) 0; text-align: left; }
 #nxv-list .nxm-empty h3 { font-size: clamp(20px,2.4vw,26px); }
+.nxv-vault-section { margin-top: 22px; text-align: left; }
+.nxv-vault-section:first-child { margin-top: 0; }
+.nxv-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 0 0 10px; }
+.nxv-section-heading h3 { margin: 0; color: var(--nx-text); font-family: var(--nx-display-font, Georgia,serif); font-size: clamp(20px,2vw,25px); }
+.nxv-section-heading p { margin: 5px 0 0; color: var(--nx-muted); font-size: 12px; line-height: 1.5; }
+.nxv-section-heading > span { flex: 0 0 auto; color: var(--nx-subtle); font-size: 11px; }
+.nxv-section-empty { padding: 18px; border: 1px dashed var(--nx-line); border-radius: 10px; color: var(--nx-muted); font-size: 13px; line-height: 1.55; }
 /* Keep the browser-local legacy markup aligned if an older cached module is open. */
 .nxv-category-label { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .nxv-category-label select { min-height: 40px; min-width: 140px; padding: 7px 10px; border: 1px solid var(--nx-line); border-radius: 8px; background: var(--nx-bg); color: var(--nx-text); font: inherit; }
@@ -135,6 +142,7 @@
 .nxv-edit-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,220px); gap: 10px; align-items: end; }
 .nxv-edit-fields > strong { grid-column: 1 / -1; }
 @media (max-width: 640px) {
+  .nxv-section-heading { align-items: start; }
   .nxv-toolbar { grid-template-columns: minmax(0,1fr); }
   .nxv-filter-control { justify-content: space-between; }
   .nxv-filter-control #nxv-filter-select { flex: 1; min-width: 0; }
