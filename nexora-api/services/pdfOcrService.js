@@ -124,7 +124,11 @@ async function extractPdfWithOcr(bytes, {
           }
         }));
         for (const {batch, texts = [], error} of results) {
-          if (error && !fallbackToLocalOcr && !continueOnUnreadablePages) throw error;
+          // continueOnUnreadablePages handles empty OCR results for a page. A
+          // provider/network error is different: surface it immediately when
+          // local fallback is disabled instead of retrying the same outage at
+          // a higher resolution and disguising it as unreadable content.
+          if (error && !fallbackToLocalOcr) throw error;
           batch.forEach((scanned, index) => {
             const text = String(texts[index] || '').trim();
             if (text) pages[scanned.number - 1] = {number: scanned.number, text, source: 'nvidia'};

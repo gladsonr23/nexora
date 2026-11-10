@@ -35,11 +35,16 @@ function makePdf({scanned = false} = {}) {
     source += `${number} 0 obj\n${body}\nendobj\n`;
   };
   const text = scanned ? '' : 'Syllabus: Unit One. Networking basics, protocol layers, routing and switching concepts.';
-  const stream = text ? `BT /F1 12 Tf 50 720 Td (${text}) Tj ET` : '';
+  const stream = scanned ? 'q 300 0 0 300 100 100 cm /Im0 Do Q' : `BT /F1 12 Tf 50 720 Td (${text}) Tj ET`;
   add(1, '<< /Type /Catalog /Pages 2 0 R >>');
   add(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  add(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>');
-  add(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const resources = scanned
+    ? '<< /XObject << /Im0 4 0 R >> >>'
+    : '<< /Font << /F1 4 0 R >> >>';
+  add(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources ${resources} /Contents 5 0 R >>`);
+  add(4, scanned
+    ? '<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 7 >>\nstream\n000000>\nendstream'
+    : '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   add(5, `<< /Length ${Buffer.byteLength(stream, 'binary')} >>\nstream\n${stream}\nendstream`);
   const xrefOffset = Buffer.byteLength(source, 'binary');
   source += `xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;

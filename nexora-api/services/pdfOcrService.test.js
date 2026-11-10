@@ -175,15 +175,21 @@ test('supports a high-resolution PNG first pass for weakly recognized papers', a
 });
 
 test('fails promptly instead of starting local OCR when the preferred OCR provider fails', async () => {
+  let calls = 0;
   await assert.rejects(
     extractPdfWithOcr(makePdf(''), {
       env: {NVIDIA_API_KEY: 'configured'},
       fallbackToLocalOcr: false,
+      continueOnUnreadablePages: true,
       runtime: fakeRuntime(1),
-      recognizeImage: async () => { throw new Error('NVIDIA OCR timed out while reading this page.'); },
+      recognizeImage: async () => {
+        calls += 1;
+        throw new Error('NVIDIA OCR timed out while reading this page.');
+      },
     }),
     /NVIDIA OCR timed out/
   );
+  assert.equal(calls, 1, 'provider failures should not trigger a second resolution retry');
 });
 
 test('fails clearly when local fallback is disabled and no preferred OCR key is configured', async () => {

@@ -36,6 +36,7 @@ test('planner and quiz material listing reads browser Vault records without an A
     filename: 'Operating Systems.pdf',
     subject: 'Computer Science',
     category: 'Syllabi',
+    sessionId: null,
     size: 256,
     type: 'application/pdf',
     createdAt: '2026-10-19T00:00:00.000Z',
